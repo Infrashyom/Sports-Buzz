@@ -129,6 +129,8 @@ export const Home = () => {
                   { name: 'Volleyball', img: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Badminton', img: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Track & Field', img: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80' },
+                  { name: 'Cricket', img: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80' },
+                  { name: 'Chess', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=600&q=80' },
                 ].map((sport, idx) => (
                   <div key={`${i}-${idx}`} className="w-[280px] h-[350px] relative rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group/card">
                     <img src={sport.img} alt={sport.name} className="w-full h-full object-cover opacity-70 group-hover/card:opacity-100 group-hover/card:scale-110 transition-all duration-700" referrerPolicy="no-referrer" />
