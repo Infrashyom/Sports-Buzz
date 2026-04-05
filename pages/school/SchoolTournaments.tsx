@@ -8,6 +8,8 @@ import { Trophy, Calendar, Users, Search, CheckCircle, MapPin, Award, User, Aler
 import { Tournament } from '../../types';
 import { StandingsTable } from '../../components/fixtures/StandingsTable';
 
+import { exportToExcel } from '../../services/export';
+
 export const SchoolTournaments = () => {
   const [viewMode, setViewMode] = useState<'BROWSE' | 'MY'>('BROWSE');
   const [filter, setFilter] = useState('ALL');
@@ -100,23 +102,26 @@ export const SchoolTournaments = () => {
           <h1 className="text-2xl font-bold text-slate-900">Tournament Hub</h1>
           <p className="text-slate-500">Discover leagues, register teams, and track competition status.</p>
         </div>
-        <div className="bg-white border border-slate-200 p-1 rounded-xl flex self-start md:self-auto shadow-sm">
-            <button 
-                onClick={() => handleViewModeChange('BROWSE')}
-                className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                    viewMode === 'BROWSE' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
-                }`}
-            >
-                Browse All
-            </button>
-            <button 
-                onClick={() => handleViewModeChange('MY')}
-                className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                    viewMode === 'MY' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
-                }`}
-            >
-                My Tournaments
-            </button>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => exportToExcel(currentTournaments, 'Tournaments')}>Export Excel</Button>
+          <div className="bg-white border border-slate-200 p-1 rounded-xl flex self-start md:self-auto shadow-sm">
+              <button 
+                  onClick={() => handleViewModeChange('BROWSE')}
+                  className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                      viewMode === 'BROWSE' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+              >
+                  Browse All
+              </button>
+              <button 
+                  onClick={() => handleViewModeChange('MY')}
+                  className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                      viewMode === 'MY' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+              >
+                  My Tournaments
+              </button>
+          </div>
         </div>
       </div>
 

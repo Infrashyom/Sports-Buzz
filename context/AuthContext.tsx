@@ -6,6 +6,8 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<User>;
   logout: () => void;
+  updateProfile: (data: { name?: string; avatar?: string }) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -52,8 +54,27 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     setUser(null);
   };
 
+  const updateProfile = async (data: { name?: string; avatar?: string }) => {
+    try {
+      const response = await api.patch('/auth/updateMe', data);
+      setUser(response.data.data.user);
+    } catch (error) {
+      console.error('Update profile failed', error);
+      throw error;
+    }
+  };
+
+  const updatePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      await api.patch('/auth/updateMyPassword', { currentPassword, newPassword });
+    } catch (error) {
+      console.error('Update password failed', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateProfile, updatePassword, isAuthenticated: !!user, loading }}>
       {children}
     </AuthContext.Provider>
   );

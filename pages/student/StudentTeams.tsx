@@ -8,6 +8,8 @@ import { MOCK_TEAMS, MOCK_STUDENTS } from '../../services/mockData';
 import { Users, User } from 'lucide-react';
 import { Team } from '../../types';
 
+import { exportToExcel } from '../../services/export';
+
 // Helper to render player grid (reused in card and modal)
 const PlayerGrid = ({ playerIds, limit = 100, currentUserId }: { playerIds: string[], limit?: number, currentUserId?: string }) => (
     <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
@@ -44,11 +46,12 @@ export const StudentTeams = () => {
 
   return (
     <DashboardLayout>
-      <div className="mb-8 flex justify-between items-end">
+      <div className="mb-8 flex justify-between items-center">
         <div>
             <h1 className="text-2xl font-bold text-slate-900">My Teams</h1>
             <p className="text-slate-500">Squad details, rosters, and stats.</p>
         </div>
+        <Button variant="outline" onClick={() => exportToExcel(myTeams, 'My_Teams')}>Export Excel</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

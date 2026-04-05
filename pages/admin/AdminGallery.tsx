@@ -14,6 +14,8 @@ interface GalleryItem {
   description?: string;
 }
 
+import { exportToExcel } from '../../services/export';
+
 export const AdminGallery = () => {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,7 @@ export const AdminGallery = () => {
           <h1 className="text-2xl font-bold text-slate-900">Gallery Management</h1>
           <p className="text-slate-500">Manage images shown on the public landing page.</p>
         </div>
+        <Button variant="outline" onClick={() => exportToExcel(items, 'Gallery')}>Export Excel</Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

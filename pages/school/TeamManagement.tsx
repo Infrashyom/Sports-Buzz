@@ -8,6 +8,8 @@ import { Users, Plus, ChevronRight, Trophy, UserPlus, Trash2, User } from 'lucid
 import { Team } from '../../types';
 import toast from 'react-hot-toast';
 
+import { exportToExcel } from '../../services/export';
+
 export const TeamManagement = () => {
   const [teams, setTeams] = useState<Team[]>(MOCK_TEAMS);
   
@@ -86,9 +88,12 @@ export const TeamManagement = () => {
           <h1 className="text-2xl font-bold text-slate-900">Teams</h1>
           <p className="text-slate-500">Manage your sports teams, coaches, and rosters.</p>
         </div>
-        <Button className="flex items-center" onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Create Team
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => exportToExcel(teams, 'Teams')}>Export Excel</Button>
+          <Button className="flex items-center" onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Create Team
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

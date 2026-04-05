@@ -8,6 +8,8 @@ import { Plus, Edit2, Check, AlertTriangle } from 'lucide-react';
 import { Sport } from '../../types';
 import toast from 'react-hot-toast';
 
+import { exportToExcel } from '../../services/export';
+
 export const SportsConfig = () => {
   const [sports, setSports] = useState<Sport[]>(MOCK_SPORTS.map(s => ({...s, rules: []})));
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,9 +70,12 @@ export const SportsConfig = () => {
           <h1 className="text-2xl font-bold text-slate-900">Sports Configuration</h1>
           <p className="text-slate-500">Manage supported sports and rules engines.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center">
-          <Plus className="h-4 w-4 mr-2" /> Add New Sport
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => exportToExcel(sports, 'Sports')}>Export Excel</Button>
+          <Button onClick={() => setIsModalOpen(true)} className="flex items-center">
+            <Plus className="h-4 w-4 mr-2" /> Add New Sport
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

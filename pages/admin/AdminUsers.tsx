@@ -9,6 +9,8 @@ import { User, UserRole } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
+import { exportToExcel } from '../../services/export';
+
 export const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Pending'>('All');
@@ -94,9 +96,12 @@ export const AdminUsers = () => {
             <h1 className="text-2xl font-bold text-slate-900">Referee Management</h1>
             <p className="text-slate-500">Manage independent referees and view certifications.</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center">
-             <Plus className="h-4 w-4 mr-2" /> Add Independent Referee
-        </Button>
+        <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => exportToExcel(referees, 'Referees')}>Export Excel</Button>
+            <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center">
+                 <Plus className="h-4 w-4 mr-2" /> Add Independent Referee
+            </Button>
+        </div>
       </div>
 
       <Card className="mb-6">

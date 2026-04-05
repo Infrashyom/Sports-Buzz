@@ -9,6 +9,8 @@ import { School } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
+import { exportToExcel } from '../../services/export';
+
 export const SchoolManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Inactive' | 'Paid' | 'Pending' | 'Overdue'>('All');
@@ -139,7 +141,7 @@ export const SchoolManagement = () => {
           <p className="text-slate-500">Manage registrations, subscriptions, and approvals.</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline">Export CSV</Button>
+          <Button variant="outline" onClick={() => exportToExcel(schools, 'Schools')}>Export Excel</Button>
           <Button onClick={handleOpenAddModal} className="flex items-center">
              <Plus className="h-4 w-4 mr-2" /> Add New School
           </Button>

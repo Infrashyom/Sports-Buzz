@@ -4,6 +4,9 @@ import { Card } from '../../components/ui/Card';
 import { MOCK_STATS_PARTICIPATION, MOCK_STATS_REVENUE } from '../../services/mockData';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 
+import { exportToExcel } from '../../services/export';
+import { Button } from '../../components/ui/Button';
+
 export const AdminAnalytics = () => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -25,9 +28,12 @@ export const AdminAnalytics = () => {
 
   return (
     <DashboardLayout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Platform Analytics</h1>
-        <p className="text-slate-500">Deep dive into engagement and growth metrics.</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Platform Analytics</h1>
+          <p className="text-slate-500">Deep dive into engagement and growth metrics.</p>
+        </div>
+        <Button variant="outline" onClick={() => exportToExcel(REGISTRATION_GROWTH, 'Analytics')}>Export Excel</Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

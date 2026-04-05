@@ -9,5 +9,7 @@ router.post('/login', authController.login);
 
 router.use(authMiddleware.protect);
 router.get('/me', authController.getMe);
+router.patch('/updateMe', authController.updateMe);
+router.patch('/updateMyPassword', authController.updatePassword);
 
 export default router;

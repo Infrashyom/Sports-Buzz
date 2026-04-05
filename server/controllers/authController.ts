@@ -57,10 +57,10 @@ export const register = catchAsync(async (req: Request, res: Response, next: Nex
 });
 
 export const mockUsers: Record<string, Record<string, unknown>> = {
-  'admin@sportsbuzz.com': { _id: 'mock-admin-id', id: 'mock-admin-id', name: 'Super Admin', email: 'admin@sportsbuzz.com', role: 'ADMIN', status: 'Active' },
-  'school@springfield.edu': { _id: 'mock-school-id', id: 'mock-school-id', name: 'Principal Skinner', email: 'school@springfield.edu', role: 'SCHOOL', status: 'Active' },
-  'referee@sportsbuzz.com': { _id: 'mock-referee-id', id: 'mock-referee-id', name: 'John Referee', email: 'referee@sportsbuzz.com', role: 'REFEREE', status: 'Active' },
-  'student@springfield.edu': { _id: 'mock-student-id', id: 'mock-student-id', name: 'Bart Simpson', email: 'student@springfield.edu', role: 'STUDENT', status: 'Active' }
+  'admin@sportsbuzz.com': { _id: 'mock-admin-id', id: 'mock-admin-id', name: 'Super Admin', email: 'admin@sportsbuzz.com', role: 'ADMIN', status: 'Active', password: 'password123', avatar: '' },
+  'school@springfield.edu': { _id: 'mock-school-id', id: 'mock-school-id', name: 'Principal Skinner', email: 'school@springfield.edu', role: 'SCHOOL', status: 'Active', password: 'password123', avatar: '' },
+  'referee@sportsbuzz.com': { _id: 'mock-referee-id', id: 'mock-referee-id', name: 'John Referee', email: 'referee@sportsbuzz.com', role: 'REFEREE', status: 'Active', password: 'password123', avatar: '' },
+  'student@springfield.edu': { _id: 'mock-student-id', id: 'mock-student-id', name: 'Bart Simpson', email: 'student@springfield.edu', role: 'STUDENT', status: 'Active', password: 'password123', avatar: '' }
 };
 
 export const login = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -71,7 +71,7 @@ export const login = catchAsync(async (req: Request, res: Response, next: NextFu
   }
 
   // Demo accounts bypass
-  if (mockUsers[email] && password === 'password123') {
+  if (mockUsers[email] && password === mockUsers[email].password) {
     const user = mockUsers[email];
     const token = signToken(user._id as string);
     return res.status(200).json({
@@ -104,9 +104,10 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
   const reqUser = (req as any).user;
   
   if (reqUser.id && reqUser.id.startsWith('mock-')) {
+    const mockUser = Object.values(mockUsers).find(u => u.id === reqUser.id);
     return res.status(200).json({
       status: 'success',
-      data: { user: reqUser },
+      data: { user: mockUser || reqUser },
     });
   }
 
@@ -117,5 +118,68 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
     data: {
       user,
     },
+  });
+});
+
+export const updateMe = catchAsync(async (req: Request, res: Response) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const reqUser = (req as any).user;
+  
+  if (reqUser.id && reqUser.id.startsWith('mock-')) {
+    const mockUser = Object.values(mockUsers).find(u => u.id === reqUser.id);
+    if (mockUser) {
+      if (req.body.avatar !== undefined) mockUser.avatar = req.body.avatar;
+      if (req.body.name !== undefined) mockUser.name = req.body.name;
+    }
+    return res.status(200).json({
+      status: 'success',
+      data: { user: mockUser || reqUser },
+    });
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    reqUser.id,
+    { avatar: req.body.avatar, name: req.body.name },
+    { new: true, runValidators: true }
+  );
+
+  res.status(200).json({
+    status: 'success',
+    data: { user: updatedUser },
+  });
+});
+
+export const updatePassword = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const reqUser = (req as any).user;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return next(new AppError('Please provide current and new password', 400));
+  }
+
+  if (reqUser.id && reqUser.id.startsWith('mock-')) {
+    const mockUser = Object.values(mockUsers).find(u => u.id === reqUser.id);
+    if (!mockUser || mockUser.password !== currentPassword) {
+      return next(new AppError('Incorrect current password', 401));
+    }
+    mockUser.password = newPassword;
+    return res.status(200).json({
+      status: 'success',
+      message: 'Password updated successfully'
+    });
+  }
+
+  const user = await User.findById(reqUser.id).select('+password');
+  if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+    return next(new AppError('Incorrect current password', 401));
+  }
+
+  user.password = await bcrypt.hash(newPassword, 12);
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Password updated successfully'
   });
 });

@@ -165,14 +165,7 @@ export const Login = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button 
-                onClick={() => handleDemoLogin(UserRole.ADMIN)} 
-                variant="outline"
-                className="text-xs"
-              >
-                Admin Demo
-              </Button>
+            <div className="grid grid-cols-3 gap-3">
               <Button 
                 onClick={() => handleDemoLogin(UserRole.SCHOOL)} 
                 variant="outline"

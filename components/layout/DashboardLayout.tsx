@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   School, 
@@ -51,8 +51,11 @@ const NavItem = ({ to, icon: Icon, label, onClick }: NavItemProps) => {
   );
 };
 
+const DashboardLayoutContext = createContext(false);
+
 export const DashboardLayout = ({ children }: { children?: React.ReactNode }) => {
-  const { user, logout } = useAuth();
+  const isNested = useContext(DashboardLayoutContext);
+  const { user, logout, updateProfile, updatePassword } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -84,16 +87,28 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
     navigate('/login');
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setAvatarUrl(url);
-      toast.success("Profile picture updated successfully.");
+      // In a real app, you would upload the file to a server/S3 and get the URL back.
+      // Here we will just create an object URL and save it to the backend.
+      // Note: Object URLs are not persistent across reloads, so we should convert to base64 for demo purposes.
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        try {
+          await updateProfile({ avatar: base64String });
+          setAvatarUrl(base64String);
+          toast.success("Profile picture updated successfully.");
+        } catch {
+          toast.error("Failed to update profile picture.");
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.new !== passwordData.confirm) {
       toast.error("New passwords do not match.");
@@ -103,9 +118,15 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
       toast.error("Password must be at least 6 characters.");
       return;
     }
-    toast.success("Password changed successfully.");
-    setIsProfileModalOpen(false);
-    setPasswordData({ current: '', new: '', confirm: '' });
+    try {
+      await updatePassword(passwordData.current, passwordData.new);
+      toast.success("Password changed successfully.");
+      setIsProfileModalOpen(false);
+      setPasswordData({ current: '', new: '', confirm: '' });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Failed to change password.");
+    }
   };
 
   // Close mobile menu when route changes
@@ -114,10 +135,15 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  if (isNested) {
+    return <>{children || <Outlet />}</>;
+  }
+
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-sans">
+    <DashboardLayoutContext.Provider value={true}>
+      <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-sans">
       
       {/* Mobile Header */}
       <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
@@ -248,7 +274,7 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 w-full min-w-0 overflow-x-hidden">
         <div className="max-w-7xl mx-auto">
-          {children}
+          {children || <Outlet />}
         </div>
       </main>
 
@@ -327,5 +353,6 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
         </div>
       </Modal>
     </div>
+    </DashboardLayoutContext.Provider>
   );
 };

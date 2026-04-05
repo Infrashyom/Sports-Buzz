@@ -72,6 +72,8 @@ const ScoreInput = ({ match }: { match: Match }) => {
     );
 };
 
+import { exportToExcel } from '../../services/export';
+
 export const RefereeMatches = () => {
   const [activeTab, setActiveTab] = useState<'PENDING' | 'HISTORY'>('PENDING');
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,19 +135,22 @@ export const RefereeMatches = () => {
           <h1 className="text-2xl font-bold text-slate-900">Match Management</h1>
           <p className="text-slate-500">View schedules, officiate games, and verify scores.</p>
         </div>
-        <div className="flex bg-white border border-slate-200 p-1 rounded-lg shadow-sm">
-             <button 
-                onClick={() => handleTabChange('PENDING')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'PENDING' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-             >
-                Pending
-             </button>
-             <button 
-                onClick={() => handleTabChange('HISTORY')}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'HISTORY' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-             >
-                History
-             </button>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => exportToExcel(filteredMatches, 'Matches')}>Export Excel</Button>
+          <div className="flex bg-white border border-slate-200 p-1 rounded-lg shadow-sm">
+               <button 
+                  onClick={() => handleTabChange('PENDING')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'PENDING' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
+               >
+                  Pending
+               </button>
+               <button 
+                  onClick={() => handleTabChange('HISTORY')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'HISTORY' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
+               >
+                  History
+               </button>
+          </div>
         </div>
       </div>
 

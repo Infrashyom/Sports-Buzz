@@ -55,6 +55,7 @@ export const AdminSettings = () => {
           platformName: platformName
       };
       localStorage.setItem('sportsBuzzContact', JSON.stringify(contactData));
+      window.dispatchEvent(new Event('logoUpdated'));
       toast.success("Settings saved successfully.");
       setIsEditing(false);
   };

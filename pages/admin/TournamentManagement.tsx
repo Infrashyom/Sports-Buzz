@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+import { exportToExcel } from '../../services/export';
+
 export const TournamentManagement = () => {
   const { user } = useAuth();
   const [view, setView] = useState<'LIST' | 'DETAIL'>('LIST');
@@ -700,9 +702,12 @@ export const TournamentManagement = () => {
           <h1 className="text-2xl font-bold text-slate-900">Tournaments</h1>
           <p className="text-slate-500">Create and manage inter-school leagues.</p>
         </div>
-        <Button onClick={handleOpenCreate} className="flex items-center">
-          <Plus className="h-4 w-4 mr-2" /> Create Tournament
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => exportToExcel(tournaments, 'Tournaments')}>Export Excel</Button>
+          <Button onClick={handleOpenCreate} className="flex items-center">
+            <Plus className="h-4 w-4 mr-2" /> Create Tournament
+          </Button>
+        </div>
       </div>
 
       {/* Filters and Search */}

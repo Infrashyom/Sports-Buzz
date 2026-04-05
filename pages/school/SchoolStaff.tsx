@@ -27,6 +27,8 @@ const MOCK_STAFF: StaffMember[] = [
   { id: '3', name: 'Sarah Line', email: 'sarah.l@gmail.com', phone: '555-0103', role: 'Referee', sport: 'Badminton', certification: 'BWF Basic', status: 'Pending Approval', rating: 5 },
 ];
 
+import { exportToExcel } from '../../services/export';
+
 export const SchoolStaff = () => {
   const [activeTab, setActiveTab] = useState<'Coach' | 'Referee'>('Coach');
   const [staffList, setStaffList] = useState<StaffMember[]>(MOCK_STAFF);
@@ -141,9 +143,12 @@ export const SchoolStaff = () => {
           <h1 className="text-2xl font-bold text-slate-900">Staff Management</h1>
           <p className="text-slate-500">Manage your Coaches and nominate Referees for official tournaments.</p>
         </div>
-        <Button onClick={openAddModal} className="flex items-center">
-          <Plus className="h-4 w-4 mr-2" /> Add {activeTab}
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => exportToExcel(filteredStaff, 'Staff')}>Export Excel</Button>
+          <Button onClick={openAddModal} className="flex items-center">
+            <Plus className="h-4 w-4 mr-2" /> Add {activeTab}
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}

@@ -13,6 +13,8 @@ import api from '../../services/api';
 // Mock config from Admin (flexible grades)
 const ALLOWED_GRADES = ['6th', '7th', '8th', '9th', '10th', '11th', '12th'];
 
+import { exportToExcel } from '../../services/export';
+
 export const StudentManagement = () => {
   const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS);
   const [searchTerm, setSearchTerm] = useState('');
@@ -162,9 +164,12 @@ export const StudentManagement = () => {
           <h1 className="text-2xl font-bold text-slate-900">Student Athletes</h1>
           <p className="text-slate-500">Manage rosters, medical status, and profiles.</p>
         </div>
-        <Button className="flex items-center" onClick={openAddModal}>
-          <Plus className="h-4 w-4 mr-2" /> Add Athlete
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={() => exportToExcel(students, 'Students')}>Export Excel</Button>
+          <Button className="flex items-center" onClick={openAddModal}>
+            <Plus className="h-4 w-4 mr-2" /> Add Athlete
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-6">

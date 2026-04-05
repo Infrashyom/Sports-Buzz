@@ -8,6 +8,8 @@ import { Button } from '../../components/ui/Button';
 import { MatchDetailModal } from '../../components/fixtures/MatchDetailModal';
 import { Match } from '../../types';
 
+import { exportToExcel } from '../../services/export';
+
 export const StudentMatches = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'UPCOMING' | 'HISTORY'>('UPCOMING');
@@ -46,9 +48,12 @@ export const StudentMatches = () => {
 
   return (
     <DashboardLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Match Center</h1>
-        <p className="text-slate-500">Track fixtures and past results.</p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Match Center</h1>
+          <p className="text-slate-500">Track fixtures and past results.</p>
+        </div>
+        <Button variant="outline" onClick={() => exportToExcel(filteredMatches, 'Matches')}>Export Excel</Button>
       </div>
 
       {/* Filters and Tabs */}

@@ -1,36 +1,70 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './types';
-import { Home } from './pages/Home';
-import { About } from './pages/About';
-import { Contact } from './pages/Contact';
-import { PublicTournaments } from './pages/PublicTournaments';
-import { Gallery } from './pages/Gallery';
-import { Login } from './pages/Login';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminGallery } from './pages/admin/AdminGallery';
-import { SchoolManagement } from './pages/admin/SchoolManagement';
-import { SportsConfig } from './pages/admin/SportsConfig';
-import { TournamentManagement } from './pages/admin/TournamentManagement';
-import { AdminUsers } from './pages/admin/AdminUsers';
-import { AdminQueries } from './pages/admin/AdminQueries';
-import { AdminAnalytics } from './pages/admin/AdminAnalytics';
-import { AdminSettings } from './pages/admin/AdminSettings';
-import { SchoolDashboard } from './pages/school/SchoolDashboard';
-import { SchoolProfile } from './pages/school/SchoolProfile';
-import { StudentManagement } from './pages/school/StudentManagement';
-import { TeamManagement } from './pages/school/TeamManagement';
-import { SchoolFixtures } from './pages/school/SchoolFixtures';
-import { SchoolStaff } from './pages/school/SchoolStaff';
-import { SchoolTournaments } from './pages/school/SchoolTournaments';
-import { RefereeDashboard } from './pages/referee/RefereeDashboard';
-import { RefereeMatches } from './pages/referee/RefereeMatches';
-import { RefereeProfile } from './pages/referee/RefereeProfile';
-import { StudentDashboard } from './pages/student/StudentDashboard';
-import { StudentTeams } from './pages/student/StudentTeams';
-import { StudentMatches } from './pages/student/StudentMatches';
+import { DashboardLayout } from './components/layout/DashboardLayout';
+
+const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
+const About = React.lazy(() => import('./pages/About').then(m => ({ default: m.About })));
+const Contact = React.lazy(() => import('./pages/Contact').then(m => ({ default: m.Contact })));
+const PublicTournaments = React.lazy(() => import('./pages/PublicTournaments').then(m => ({ default: m.PublicTournaments })));
+const Gallery = React.lazy(() => import('./pages/Gallery').then(m => ({ default: m.Gallery })));
+const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+
+const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminGallery = React.lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
+const SchoolManagement = React.lazy(() => import('./pages/admin/SchoolManagement').then(m => ({ default: m.SchoolManagement })));
+const SportsConfig = React.lazy(() => import('./pages/admin/SportsConfig').then(m => ({ default: m.SportsConfig })));
+const TournamentManagement = React.lazy(() => import('./pages/admin/TournamentManagement').then(m => ({ default: m.TournamentManagement })));
+const AdminUsers = React.lazy(() => import('./pages/admin/AdminUsers').then(m => ({ default: m.AdminUsers })));
+const AdminQueries = React.lazy(() => import('./pages/admin/AdminQueries').then(m => ({ default: m.AdminQueries })));
+const AdminAnalytics = React.lazy(() => import('./pages/admin/AdminAnalytics').then(m => ({ default: m.AdminAnalytics })));
+const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
+
+const SchoolDashboard = React.lazy(() => import('./pages/school/SchoolDashboard').then(m => ({ default: m.SchoolDashboard })));
+const SchoolProfile = React.lazy(() => import('./pages/school/SchoolProfile').then(m => ({ default: m.SchoolProfile })));
+const StudentManagement = React.lazy(() => import('./pages/school/StudentManagement').then(m => ({ default: m.StudentManagement })));
+const TeamManagement = React.lazy(() => import('./pages/school/TeamManagement').then(m => ({ default: m.TeamManagement })));
+const SchoolFixtures = React.lazy(() => import('./pages/school/SchoolFixtures').then(m => ({ default: m.SchoolFixtures })));
+const SchoolStaff = React.lazy(() => import('./pages/school/SchoolStaff').then(m => ({ default: m.SchoolStaff })));
+const SchoolTournaments = React.lazy(() => import('./pages/school/SchoolTournaments').then(m => ({ default: m.SchoolTournaments })));
+
+const RefereeDashboard = React.lazy(() => import('./pages/referee/RefereeDashboard').then(m => ({ default: m.RefereeDashboard })));
+const RefereeMatches = React.lazy(() => import('./pages/referee/RefereeMatches').then(m => ({ default: m.RefereeMatches })));
+const RefereeProfile = React.lazy(() => import('./pages/referee/RefereeProfile').then(m => ({ default: m.RefereeProfile })));
+
+const StudentDashboard = React.lazy(() => import('./pages/student/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
+const StudentTeams = React.lazy(() => import('./pages/student/StudentTeams').then(m => ({ default: m.StudentTeams })));
+const StudentMatches = React.lazy(() => import('./pages/student/StudentMatches').then(m => ({ default: m.StudentMatches })));
+
+const useDynamicFavicon = () => {
+  useEffect(() => {
+    const updateFavicon = () => {
+      const savedContact = localStorage.getItem('sportsBuzzContact');
+      if (savedContact) {
+        try {
+          const parsed = JSON.parse(savedContact);
+          if (parsed.logoUrl) {
+            let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+            if (!link) {
+              link = document.createElement('link');
+              link.rel = 'icon';
+              document.head.appendChild(link);
+            }
+            link.href = parsed.logoUrl;
+          }
+        } catch (e) {
+          console.error("Error parsing sportsBuzzContact for favicon", e);
+        }
+      }
+    };
+
+    updateFavicon();
+    window.addEventListener('logoUpdated', updateFavicon);
+    return () => window.removeEventListener('logoUpdated', updateFavicon);
+  }, []);
+};
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: UserRole[] }) => {
@@ -51,25 +85,43 @@ const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode
   return <>{children}</>;
 };
 
+const DashboardLayoutWrapper = () => {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={<div className="flex items-center justify-center h-[calc(100vh-4rem)]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
+        <Outlet />
+      </Suspense>
+    </DashboardLayout>
+  );
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/gallery" element={<Gallery />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/tournaments" element={<PublicTournaments />} />
-      <Route path="/login" element={<Login />} />
+      <Route element={
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
+          <Outlet />
+        </Suspense>
+      }>
+        <Route path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/tournaments" element={<PublicTournaments />} />
+        <Route path="/login" element={<Login />} />
+      </Route>
       
-      {/* Admin Routes */}
-      <Route 
-        path="/admin/dashboard" 
-        element={
-          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-            <AdminDashboard />
-          </ProtectedRoute>
-        } 
-      />
+      {/* Authenticated Routes */}
+      <Route element={<DashboardLayoutWrapper />}>
+        {/* Admin Routes */}
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
       <Route 
         path="/admin/schools" 
         element={
@@ -248,11 +300,14 @@ const AppRoutes = () => {
         } 
       />
       <Route path="/student/*" element={<Navigate to="/student/dashboard" />} />
+      </Route>
     </Routes>
   );
 };
 
 export default function App() {
+  useDynamicFavicon();
+
   return (
     <AuthProvider>
       <Toaster position="top-right" />

@@ -8,6 +8,8 @@ import { Match } from '../../types';
 import { MatchDetailModal } from '../../components/fixtures/MatchDetailModal';
 import { StandingsTable } from '../../components/fixtures/StandingsTable';
 
+import { exportToExcel } from '../../services/export';
+
 export const SchoolFixtures = () => {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string>('t1'); // Default to first tournament
   const [activeTab, setActiveTab] = useState<'FIXTURES' | 'STANDINGS'>('FIXTURES');
@@ -70,9 +72,12 @@ export const SchoolFixtures = () => {
 
   return (
     <DashboardLayout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Matches & Results</h1>
-        <p className="text-slate-500">Track fixtures, results, and point tables for every league.</p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Matches & Results</h1>
+          <p className="text-slate-500">Track fixtures, results, and point tables for every league.</p>
+        </div>
+        <Button variant="outline" onClick={() => exportToExcel(currentMatches, 'Matches')}>Export Excel</Button>
       </div>
 
       {/* 1. Tournament Selector (Context Switcher) */}
