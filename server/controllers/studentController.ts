@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 import { Student } from '../models/Student';
+import { School } from '../models/School';
 import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
 
@@ -11,7 +12,12 @@ export const getAllStudents = catchAsync(async (req: Request, res: Response) => 
 
   // Protect the query against cross-school snooping
   if (reqUser && reqUser.role === 'SCHOOL') {
-    filter.schoolId = reqUser.schoolId;
+    if (reqUser.schoolId) {
+      filter.schoolId = reqUser.schoolId;
+    } else {
+      const school = await School.findOne({ adminUserId: reqUser._id });
+      if (school) filter.schoolId = school._id;
+    }
   } else if (reqUser && reqUser.role === 'STUDENT') {
     if (reqUser.schoolId) {
       filter.schoolId = reqUser.schoolId;
@@ -21,12 +27,16 @@ export const getAllStudents = catchAsync(async (req: Request, res: Response) => 
     }
   } else if (req.params.schoolId) {
     if (!mongoose.Types.ObjectId.isValid(String(req.params.schoolId))) {
-      return res.status(200).json({ status: 'success', results: 0, data: { students: [] } });
+      // Try to find if req.params.schoolId is actually adminUserId
+      const school = await School.findOne({ adminUserId: req.params.schoolId });
+      if (school) filter.schoolId = school._id;
+      else return res.status(200).json({ status: 'success', results: 0, data: { students: [] } });
+    } else {
+      filter.schoolId = req.params.schoolId;
     }
-    filter.schoolId = req.params.schoolId;
   }
 
-  const students = await Student.find(filter);
+  const students = await Student.find(filter).populate('schoolId');
 
   res.status(200).json({
     status: 'success',
@@ -37,8 +47,20 @@ export const getAllStudents = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
-export const createStudent = catchAsync(async (req: Request, res: Response) => {
-  if (!req.body.schoolId) req.body.schoolId = req.params.schoolId;
+export const createStudent = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.body.schoolId) {
+    if (mongoose.Types.ObjectId.isValid(String(req.params.schoolId))) {
+        req.body.schoolId = req.params.schoolId;
+    } else {
+        const school = await School.findOne({ adminUserId: req.params.schoolId });
+        if (school) req.body.schoolId = school._id;
+    }
+  }
+
+  const existingStudent = await Student.findOne({ schoolId: req.body.schoolId, studentId: req.body.studentId });
+  if (existingStudent) {
+    return next(new AppError('Athlete ID already in use for this school', 400));
+  }
 
   const newStudent = await Student.create(req.body);
 

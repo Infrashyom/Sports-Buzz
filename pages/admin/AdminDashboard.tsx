@@ -101,7 +101,7 @@ export const AdminDashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-900 truncate max-w-[150px] sm:max-w-xs">{school.name}</p>
-                      <p className="text-xs text-slate-500">{new Date(school.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-slate-500">{new Date(school.createdAt).toLocaleDateString()}{school.phone ? ` • ${school.phone}` : ''}</p>
                     </div>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-[10px] sm:text-xs font-bold ${
@@ -119,6 +119,5 @@ export const AdminDashboard = () => {
           </div>
         </Card>
       </div></>
-    
   );
 };

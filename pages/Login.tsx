@@ -67,28 +67,7 @@ export const Login = () => {
     }
   };
 
-  const handleDemoLogin = (role: UserRole) => {
-    switch (role) {
-      case UserRole.ADMIN:
-        setEmail('admin@sportsbuzz.com');
-        setPassword('password123');
-        break;
-      case UserRole.SCHOOL:
-        setEmail('school@springfield.edu');
-        setPassword('password123');
-        break;
-      case UserRole.REFEREE:
-        setEmail('referee@sportsbuzz.com');
-        setPassword('password123');
-        break;
-      case UserRole.STUDENT:
-        setEmail('student@springfield.edu');
-        setPassword('password123');
-        break;
-    }
-  };
-
-  return (
+  return (<>
     <PublicLayout>
       <div className="min-h-screen flex items-center justify-center bg-slate-50 pt-32 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -100,25 +79,25 @@ export const Login = () => {
               Sign in to your account
             </h2>
             <p className="mt-2 text-center text-sm text-slate-600">
-              Enter your credentials or use a demo account below.
+              Enter your credentials to access your dashboard.
             </p>
           </div>
           
           <Card className="p-6 space-y-6">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Email</label>
+                <label className="text-sm font-medium text-slate-700">Email or Student ID</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Mail className="h-5 w-5 text-slate-400" />
                   </div>
                   <input
-                    type="email"
+                    type="text"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md leading-5 bg-white placeholder-slate-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="you@example.com"
+                    placeholder="you@example.com or STU-001"
                   />
                 </div>
               </div>
@@ -155,42 +134,9 @@ export const Login = () => {
                 {loading ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500">Or try a demo account</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <Button 
-                onClick={() => handleDemoLogin(UserRole.SCHOOL)} 
-                variant="outline"
-                className="text-xs"
-              >
-                School Demo
-              </Button>
-              <Button 
-                onClick={() => handleDemoLogin(UserRole.REFEREE)} 
-                variant="outline"
-                className="text-xs"
-              >
-                Referee Demo
-              </Button>
-              <Button 
-                onClick={() => handleDemoLogin(UserRole.STUDENT)} 
-                variant="outline"
-                className="text-xs"
-              >
-                Student Demo
-              </Button>
-            </div>
           </Card>
         </div>
       </div>
-    </PublicLayout>
+    </PublicLayout></>
   );
 };

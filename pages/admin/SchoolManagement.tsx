@@ -40,7 +40,6 @@ export const SchoolManagement = () => {
       const formattedSchools = res.data.data.schools.map((s: any) => ({
         ...s,
         id: s._id,
-        isSubscribed: s.paymentStatus === 'Paid' || s.isSubscribed,
       }));
       setSchools(formattedSchools);
     } catch (error) {
@@ -112,9 +111,23 @@ export const SchoolManagement = () => {
     }
 
     if (isEditMode && selectedSchoolId) {
-      setSchools(schools.map(s => s.id === selectedSchoolId ? { ...s, ...formData } as School : s));
-      toast.success("School updated successfully.");
-      setIsModalOpen(false);
+      try {
+        await api.patch(`/schools/${selectedSchoolId}`, {
+          name: formData.name,
+          address: formData.address,
+          contactEmail: formData.contactEmail,
+          phone: formData.phone,
+          isSubscribed: formData.isSubscribed,
+          paymentStatus: formData.paymentStatus,
+          studentCount: formData.studentCount,
+          participatedStudents: formData.participatedStudents
+        });
+        toast.success("School updated successfully.");
+        setIsModalOpen(false);
+        fetchSchools();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Failed to update school.");
+      }
     } else {
       try {
         // Create user and school in backend
@@ -125,47 +138,19 @@ export const SchoolManagement = () => {
           role: 'SCHOOL',
           schoolName: formData.name,
           schoolAddress: formData.address,
-          schoolEmail: formData.contactEmail
+          schoolEmail: formData.contactEmail,
+          schoolPhone: formData.phone,
+          isSubscribed: formData.isSubscribed,
+          paymentStatus: formData.paymentStatus,
+          studentCount: formData.studentCount,
+          participatedStudents: formData.participatedStudents,
         });
 
-        const school: School = {
-          id: `s${Date.now()}`,
-          name: formData.name!,
-          address: formData.address!,
-          contactEmail: formData.contactEmail!,
-          phone: formData.phone,
-          logo: `https://picsum.photos/seed/${formData.name}/100`, // Mock logo
-          isSubscribed: !!formData.isSubscribed,
-          paymentStatus: formData.paymentStatus,
-          studentCount: Number(formData.studentCount) || 0,
-          participatedStudents: Number(formData.participatedStudents) || 0,
-          cityRank: schools.length + 1,
-          facilities: []
-        };
-        setSchools([...schools, school]);
         toast.success("School created successfully. Credentials sent to email.");
         setIsModalOpen(false);
         fetchSchools();
-      } catch {
-        // Fallback for demo
-        toast.error("Failed to register school. Trying local mock.");
-        const school: School = {
-          id: `s${Date.now()}`,
-          name: formData.name!,
-          address: formData.address!,
-          contactEmail: formData.contactEmail!,
-          phone: formData.phone,
-          logo: `https://picsum.photos/seed/${formData.name}/100`, // Mock logo
-          isSubscribed: !!formData.isSubscribed,
-          paymentStatus: formData.paymentStatus,
-          studentCount: Number(formData.studentCount) || 0,
-          participatedStudents: Number(formData.participatedStudents) || 0,
-          cityRank: schools.length + 1,
-          facilities: []
-        };
-        setSchools([...schools, school]);
-        toast.success("School created locally (Demo mode).");
-        setIsModalOpen(false);
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "Failed to register school.");
       }
     }
   };
@@ -348,7 +333,7 @@ export const SchoolManagement = () => {
                         type="tel" 
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
                         placeholder="(555) 000-0000"
-                        value={formData.phone}
+                        value={formData.phone || ''}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     />
                   </div>
@@ -393,7 +378,7 @@ export const SchoolManagement = () => {
                     <label className="block text-sm font-bold text-slate-700 mb-1">Payment Status</label>
                     <select
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
-                        value={formData.paymentStatus}
+                        value={formData.paymentStatus || 'Pending'}
                         onChange={(e) => setFormData({...formData, paymentStatus: e.target.value as 'Paid' | 'Pending' | 'Overdue'})}
                     >
                         <option value="Paid">Paid</option>
@@ -429,7 +414,7 @@ export const SchoolManagement = () => {
                       <input 
                         type="checkbox" 
                         className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-                        checked={formData.isSubscribed}
+                        checked={!!formData.isSubscribed}
                         onChange={(e) => setFormData({...formData, isSubscribed: e.target.checked})}
                       />
                       <span className="text-sm font-medium text-slate-900">Active Subscription</span>

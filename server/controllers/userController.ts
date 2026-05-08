@@ -6,6 +6,8 @@ import { AppError } from '../utils/errorHandler';
 
 export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   const filter: Record<string, any> = {};
+  
+   
   const reqUser = (req as any).user;
   
   if (reqUser.role === 'SCHOOL') {
@@ -25,12 +27,18 @@ export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-export const createUser = catchAsync(async (req: Request, res: Response) => {
+export const createUser = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const existingUser = await User.findOne({ email: req.body.email });
+  if (existingUser) {
+    return next(new AppError('Email already in use', 400));
+  }
+
   const userData = { ...req.body };
   if (userData.password) {
     userData.password = await bcrypt.hash(userData.password, 12);
   }
   
+   
   const reqUser = (req as any).user;
   
   // If a school creates a user (coach or referee), tag it with the schoolId

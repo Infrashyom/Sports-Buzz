@@ -10,6 +10,7 @@ const schoolSchema = new mongoose.Schema({
   isSubscribed: { type: Boolean, default: false },
   paymentStatus: { type: String, enum: ['Paid', 'Pending', 'Overdue'], default: 'Pending' },
   studentCount: { type: Number, default: 0 },
+  participatedStudents: { type: Number, default: 0 },
   cityRank: { type: Number },
   adminUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Link to the user managing this school
   facilities: [{

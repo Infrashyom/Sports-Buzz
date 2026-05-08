@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 import { Team } from '../models/Team';
+import { School } from '../models/School';
 import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
 
@@ -8,9 +10,20 @@ export const getAllTeams = catchAsync(async (req: Request, res: Response) => {
   const reqUser = (req as any).user;
 
   if (reqUser && (reqUser.role === 'SCHOOL' || reqUser.role === 'STUDENT')) {
-    filter.schoolId = reqUser.schoolId;
+    if (reqUser.schoolId) {
+      filter.schoolId = reqUser.schoolId;
+    } else {
+      const school = await School.findOne({ adminUserId: reqUser._id });
+      if (school) filter.schoolId = school._id;
+    }
   } else if (req.params.schoolId) {
-    filter.schoolId = req.params.schoolId;
+    if (!mongoose.Types.ObjectId.isValid(String(req.params.schoolId))) {
+      const school = await School.findOne({ adminUserId: req.params.schoolId });
+      if (school) filter.schoolId = school._id;
+      else return res.status(200).json({ status: 'success', results: 0, data: { teams: [] } });
+    } else {
+      filter.schoolId = req.params.schoolId;
+    }
   }
 
   const teams = await Team.find(filter).populate('players');
@@ -25,7 +38,14 @@ export const getAllTeams = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const createTeam = catchAsync(async (req: Request, res: Response) => {
-  if (!req.body.schoolId) req.body.schoolId = req.params.schoolId;
+  if (!req.body.schoolId) {
+    if (mongoose.Types.ObjectId.isValid(String(req.params.schoolId))) {
+      req.body.schoolId = req.params.schoolId;
+    } else {
+      const school = await School.findOne({ adminUserId: req.params.schoolId });
+      if (school) req.body.schoolId = school._id;
+    }
+  }
 
   const newTeam = await Team.create(req.body);
 

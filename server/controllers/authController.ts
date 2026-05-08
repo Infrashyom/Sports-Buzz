@@ -15,7 +15,7 @@ const signToken = (id: string) => {
 };
 
 export const register = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  const { name, email, password, role, mobile, schoolName, schoolAddress, schoolEmail, schoolId } = req.body;
+  const { name, email, password, role, mobile, schoolName, schoolAddress, schoolEmail, schoolPhone, schoolId, isSubscribed, paymentStatus, studentCount, participatedStudents } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -41,7 +41,12 @@ export const register = catchAsync(async (req: Request, res: Response, next: Nex
       name: schoolName,
       address: schoolAddress,
       contactEmail: schoolEmail,
+      phone: schoolPhone,
       adminUserId: newUser._id,
+      isSubscribed: isSubscribed !== undefined ? isSubscribed : false,
+      paymentStatus: paymentStatus || 'Pending',
+      studentCount: studentCount || 0,
+      participatedStudents: participatedStudents || 0
     });
     newUser.schoolId = newSchool._id as mongoose.Types.ObjectId;
     await newUser.save();
@@ -65,11 +70,21 @@ export const login = catchAsync(async (req: Request, res: Response, next: NextFu
     return next(new AppError('Please provide email and password', 400));
   }
 
-  const user = await User.findOne({ email }).select('+password');
+  const userDoc = await User.findOne({ email }).select('+password');
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
+  if (!userDoc || !(await bcrypt.compare(password, userDoc.password))) {
     return next(new AppError('Incorrect email or password', 401));
   }
+
+  const user = userDoc.toObject() as any;
+  if (user.role === 'SCHOOL' && !user.schoolId) {
+      const school = await School.findOne({ adminUserId: user._id });
+      if (school) {
+          user.schoolId = school._id;
+      }
+  }
+
+  delete user.password;
 
   const token = signToken((user._id as mongoose.Types.ObjectId).toString());
 
@@ -87,7 +102,13 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
    
   const reqUser = (req as any).user;
 
-  const user = await User.findById(reqUser.id).populate('schoolId');
+  const user = await User.findById(reqUser.id).lean(); // Use lean to easily modify the response object
+  if (user && user.role === 'SCHOOL' && !user.schoolId) {
+      const school = await School.findOne({ adminUserId: user._id });
+      if (school) {
+          user.schoolId = school._id;
+      }
+  }
 
   res.status(200).json({
     status: 'success',
@@ -163,7 +184,7 @@ export const addCertification = catchAsync(async (req: Request, res: Response) =
     reqUser.id,
     { $push: { certifications: newCertification } },
     { new: true, runValidators: true }
-  ).populate('schoolId');
+  );
 
   res.status(200).json({
     status: 'success',

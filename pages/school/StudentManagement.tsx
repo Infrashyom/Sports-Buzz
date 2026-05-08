@@ -142,8 +142,8 @@ export const StudentManagement = () => {
             setStudents([sData, ...students]);
             toast.success("Athlete registered successfully.");
             setIsModalOpen(false);
-        } catch {
-            toast.error("Failed to register athlete.");
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Failed to register athlete.");
         }
       } else {
         // Edit Mode
@@ -161,8 +161,8 @@ export const StudentManagement = () => {
             setStudents(students.map(s => s.id === formData.id ? updated : s));
             toast.success("Athlete details updated.");
             setIsModalOpen(false);
-        } catch {
-            toast.error("Failed to update athlete details.");
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Failed to update athlete details.");
         }
       }
   };
@@ -252,7 +252,7 @@ export const StudentManagement = () => {
             <thead className="bg-slate-50">
                 <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Athlete</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">ID & Grade</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Email ID & Grade</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Sports</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
@@ -279,7 +279,7 @@ export const StudentManagement = () => {
                     </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-slate-900 font-mono font-medium">{student.studentId}</div>
+                    <div className="text-sm text-slate-900 font-mono font-medium" style={{maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis'}} title={student.studentId}>{student.studentId}</div>
                     <div className="text-xs text-slate-500">{student.grade} Grade</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -380,10 +380,10 @@ export const StudentManagement = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Student ID (Internal) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Email ID (Used for Login) <span className="text-red-500">*</span></label>
                     <input 
-                        type="text" 
-                        placeholder="e.g. STU-001"
+                        type="email" 
+                        placeholder="e.g. athlete@school.edu"
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
                         value={formData.studentId}
                         onChange={(e) => setFormData({...formData, studentId: e.target.value})}

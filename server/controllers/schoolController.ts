@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { School } from '../models/School';
+import { Team } from '../models/Team';
+import { Student } from '../models/Student';
+import { Match } from '../models/Match';
 import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
 import cloudinary from '../utils/cloudinary';
@@ -116,6 +119,9 @@ export const getDashboardData = catchAsync(async (req: Request, res: Response, n
   let school;
   try {
     school = await School.findById(req.params.id);
+    if (!school) {
+        school = await School.findOne({ adminUserId: req.params.id });
+    }
   } catch {
     // Ignore cast errors
   }
@@ -125,10 +131,6 @@ export const getDashboardData = catchAsync(async (req: Request, res: Response, n
   }
 
   // Find all teams for this school
-  const { Team } = await import('../models/Team');
-  const { Student } = await import('../models/Student');
-  const { Match } = await import('../models/Match');
-
   const teams = await Team.find({ schoolId: school._id });
   const teamIds = teams.map(t => t._id);
 

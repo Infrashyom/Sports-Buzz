@@ -4,6 +4,8 @@ import { School } from '../models/School';
 import { Student } from '../models/Student';
 import { Tournament } from '../models/Tournament';
 import { User } from '../models/User';
+import { Team } from '../models/Team';
+import { Match } from '../models/Match';
 import jwt, { SignOptions } from 'jsonwebtoken';
 
 const signToken = (id: string) => {
@@ -45,8 +47,7 @@ export const getDashboardStats = catchAsync(async (req: Request, res: Response) 
   const activeStudents = await Student.countDocuments({ status: 'Active' });
   const ongoingTournaments = await Tournament.countDocuments({ status: 'ONGOING' });
   const pendingApprovals = await School.countDocuments({ status: 'Pending' }).catch(() => 0);
-  const recentSchools = await School.find().sort({ createdAt: -1 }).limit(5).select('name createdAt status city');
-  const { Team } = await import('../models/Team');
+  const recentSchools = await School.find().sort({ createdAt: -1 }).limit(5).select('name createdAt paymentStatus isSubscribed city phone contactEmail');
   const participationAgg = await Team.aggregate([
     { $group: { _id: "$sport", count: { $sum: 1 } } }
   ]);
@@ -65,7 +66,6 @@ export const getDashboardStats = catchAsync(async (req: Request, res: Response) 
 
 export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
   // Aggregate sport popularity
-  const { Team } = await import('../models/Team');
   const participationAgg = await Team.aggregate([
     { $group: { _id: "$sport", count: { $sum: 1 } } }
   ]);
@@ -99,7 +99,6 @@ export const getAnalytics = catchAsync(async (req: Request, res: Response) => {
     students: m.count * 50 // Fake correlation
   }));
 
-  const { Match } = await import('../models/Match');
   const matchMonthAgg = await Match.aggregate([
     { $group: { _id: { $month: "$date" }, count: { $sum: 1 } } },
     { $sort: { _id: 1 } }

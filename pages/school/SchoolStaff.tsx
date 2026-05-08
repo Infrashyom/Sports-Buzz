@@ -95,8 +95,8 @@ export const SchoolStaff = () => {
             setStaffList([...staffList, addedStaff.data.data.user]);
             toast.success(`Referee added successfully.`);
             setIsModalOpen(false);
-        } catch {
-            toast.error("Failed to add staff");
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Failed to add staff");
         }
     } else {
         try {
@@ -104,8 +104,8 @@ export const SchoolStaff = () => {
           setStaffList(staffList.map(s => s._id === formData._id ? res.data.data.user : s));
           toast.success(`Referee details updated.`);
           setIsModalOpen(false);
-        } catch {
-          toast.error("Failed to update staff");
+        } catch (error: any) {
+          toast.error(error.response?.data?.message || "Failed to update staff");
         }
     }
   };
