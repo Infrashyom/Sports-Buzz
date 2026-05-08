@@ -4,9 +4,13 @@ import * as authMiddleware from '../middleware/auth';
 
 const router = express.Router({ mergeParams: true }); // Allow access to :schoolId
 
+router.use(authMiddleware.protect);
+
 router.get('/', studentController.getAllStudents);
 
-router.use(authMiddleware.protect);
+// Allow students to update only their own status, but for simplicity we can just add a specific route
+router.patch('/:id/status', studentController.updateStudentStatus);
+
 router.use(authMiddleware.restrictTo('SCHOOL', 'ADMIN'));
 
 router.post('/', studentController.createStudent);

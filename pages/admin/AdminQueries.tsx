@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Mail, CheckCircle, Clock, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MOCK_QUERIES } from '../../services/mockData';
 
 interface Query {
   _id: string;
@@ -17,30 +15,24 @@ interface Query {
   createdAt: string;
 }
 
-import { exportToExcel } from '../../services/export';
-
 export const AdminQueries = () => {
   const [queries, setQueries] = useState<Query[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   useEffect(() => {
     fetchQueries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchQueries = async () => {
     try {
       const response = await api.get('/contact-queries');
-      if (response.data.data.queries.length === 0) {
-        setQueries(MOCK_QUERIES as Query[]);
-      } else {
-        setQueries(response.data.data.queries);
-      }
+      setQueries(response.data.data.queries);
     } catch {
-      setQueries(MOCK_QUERIES as Query[]);
+      toast.error('Failed to fetch contact queries');
     } finally {
       setIsLoading(false);
     }
@@ -52,10 +44,7 @@ export const AdminQueries = () => {
       toast.success('Query status updated');
       fetchQueries();
     } catch {
-      // Fallback for demo
-      const updatedQueries = queries.map(q => q._id === id ? { ...q, status: newStatus } : q);
-      setQueries(updatedQueries);
-      toast.success('Query status updated locally (Demo mode)');
+      toast.error('Failed to update query status');
     }
   };
 
@@ -64,9 +53,11 @@ export const AdminQueries = () => {
       const fullName = `${q.firstName} ${q.lastName}`.toLowerCase();
       const email = q.email.toLowerCase();
       const search = searchTerm.toLowerCase();
-      return fullName.includes(search) || email.includes(search);
+      const matchesSearch = fullName.includes(search) || email.includes(search);
+      const matchesStatus = statusFilter === 'ALL' || q.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  }, [queries, searchTerm]);
+  }, [queries, searchTerm, statusFilter]);
 
   const totalPages = Math.ceil(filteredQueries.length / itemsPerPage);
   const paginatedQueries = filteredQueries.slice(
@@ -75,13 +66,25 @@ export const AdminQueries = () => {
   );
 
   return (
-    <DashboardLayout>
+    <>
       <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Contact Queries</h1>
           <p className="text-slate-500">Manage inquiries from the public contact form.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <select 
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="RESOLVED">Resolved</option>
+          </select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -95,7 +98,6 @@ export const AdminQueries = () => {
               className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-64"
             />
           </div>
-          <Button variant="outline" onClick={() => exportToExcel(filteredQueries, 'Contact_Queries')}>Export Excel</Button>
         </div>
       </div>
 
@@ -181,6 +183,6 @@ export const AdminQueries = () => {
           </>
         )}
       </Card>
-    </DashboardLayout>
+    </>
   );
 };

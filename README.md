@@ -42,21 +42,20 @@ Ensure you have the following installed on your local machine:
     JWT_SECRET=your_jwt_secret
     JWT_EXPIRES_IN=90d
     PORT=3000
+    
+    # Cloudinary Configuration (Required for image uploads)
+    CLOUDINARY_CLOUD_NAME=your_cloud_name
+    CLOUDINARY_API_KEY=your_api_key
+    CLOUDINARY_API_SECRET=your_api_secret
     ```
 
-4.  **Seed the Database**:
-    Run the seed script to create demo accounts:
-    ```bash
-    npm run seed
-    ```
-
-5.  **Start the Development Server**:
+4.  **Start the Development Server**:
     This starts both the backend server and the frontend (via Vite middleware).
     ```bash
     npm run dev
     ```
 
-6.  **Open the App**:
+5.  **Open the App**:
     Visit `http://localhost:3000` in your browser.
 
 ## 📂 Project Structure

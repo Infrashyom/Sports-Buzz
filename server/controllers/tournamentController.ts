@@ -33,7 +33,6 @@ export const updatePointsTable = catchAsync(async (req: Request, res: Response, 
     return next(new AppError('No tournament found with that ID', 404));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const user = (req as any).user;
 
   if (user.role === 'REFEREE') {
@@ -61,11 +60,11 @@ export const registerTeam = catchAsync(async (req: Request, res: Response, next:
   }
 
   // Check if team is already registered
-  if (tournament.teams.includes(req.body.teamId)) {
+  if (tournament.registeredTeams.includes(req.body.teamId)) {
     return next(new AppError('Team already registered for this tournament', 400));
   }
 
-  tournament.teams.push(req.body.teamId);
+  tournament.registeredTeams.push(req.body.teamId);
   await tournament.save();
 
   res.status(200).json({
@@ -73,5 +72,36 @@ export const registerTeam = catchAsync(async (req: Request, res: Response, next:
     data: {
       tournament,
     },
+  });
+});
+
+export const updateTournament = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const tournament = await Tournament.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!tournament) {
+    return next(new AppError('No tournament found with that ID', 404));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      tournament,
+    },
+  });
+});
+
+export const deleteTournament = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const tournament = await Tournament.findByIdAndDelete(req.params.id);
+
+  if (!tournament) {
+    return next(new AppError('No tournament found with that ID', 404));
+  }
+
+  res.status(204).json({
+    status: 'success',
+    data: null,
   });
 });

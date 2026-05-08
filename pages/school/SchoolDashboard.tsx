@@ -1,23 +1,54 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
+
 import { Card } from '../../components/ui/Card';
-import { MOCK_MATCHES } from '../../services/mockData';
 import { Calendar, Users, Trophy, ChevronRight } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
 export const SchoolDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [data, setData] = useState<{
+    schoolName: string;
+    cityRank: number;
+    totalAthletes: number;
+    recentMatches: any[];
+    nextMatch: any | null;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Filter only completed matches for the history widget and limit to 3
-  const recentMatches = MOCK_MATCHES
-    .filter(m => m.status === 'VERIFIED' || m.status === 'COMPLETED')
-    .slice(0, 3);
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const targetId = user?.schoolId || user?.id;
+        const res = await api.get(`/schools/${targetId}/dashboard`);
+        setData(res.data.data);
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  return (
-    <DashboardLayout>
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
+
+  if (loading) {
+    return <div className="flex h-64 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+  }
+
+  if (!data) return null;
+
+  return (<>
+    
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Springfield High</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{data.schoolName || 'School Dashboard'}</h1>
         <p className="text-slate-500">School Administration Panel</p>
       </div>
 
@@ -25,12 +56,12 @@ export const SchoolDashboard = () => {
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-blue-100 text-sm font-medium">City Ranking</p>
-              <h3 className="text-4xl font-bold mt-2">#1</h3>
+              <p className="text-blue-100 text-sm font-medium">City Rank</p>
+              <h3 className="text-4xl font-bold mt-2">#{data.cityRank || '--'}</h3>
             </div>
             <Trophy className="h-8 w-8 text-blue-200" />
           </div>
-          <p className="mt-4 text-sm text-blue-100">Top 5% in the region</p>
+          <p className="mt-4 text-sm text-blue-100">Among all schools</p>
         </Card>
 
         <Card>
@@ -38,8 +69,8 @@ export const SchoolDashboard = () => {
             <Users className="h-5 w-5 text-blue-500" />
             <span className="font-semibold text-slate-700">Total Athletes</span>
           </div>
-          <p className="text-3xl font-bold text-slate-900">142</p>
-          <p className="text-sm text-slate-500 mt-1">Across 8 different sports</p>
+          <p className="text-3xl font-bold text-slate-900">{data.totalAthletes || 0}</p>
+          <p className="text-sm text-slate-500 mt-1">Active registered players</p>
         </Card>
 
         <Card>
@@ -47,54 +78,28 @@ export const SchoolDashboard = () => {
             <Calendar className="h-5 w-5 text-blue-500" />
             <span className="font-semibold text-slate-700">Next Match</span>
           </div>
-          <p className="text-lg font-bold text-slate-900">vs Riverside Academy</p>
-          <p className="text-sm text-slate-500 mt-1">Tomorrow, 2:00 PM • Basketball</p>
+          {data.nextMatch ? (
+            <>
+              <p className="text-lg font-bold text-slate-900 truncate">
+                vs {data.nextMatch.teamA?._id === user?.id ? data.nextMatch.teamB?.name : data.nextMatch.teamB?.name}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                {new Date(data.nextMatch.date).toLocaleDateString()} • {data.nextMatch.sport}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-bold text-slate-400">No Upcoming Match</p>
+              <p className="text-sm text-slate-400 mt-1">Check fixtures</p>
+            </>
+          )}
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card title="Recent Match Results">
-            <div className="space-y-4">
-              {recentMatches.map(match => (
-                <div key={match.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0 w-12 text-center">
-                      <span className="block text-xs text-slate-500 uppercase">{match.sport.slice(0,3)}</span>
-                      <span className="block font-bold text-slate-700">{new Date(match.date).getDate()}</span>
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-900">
-                        {match.teamA} <span className="text-slate-400 mx-1">vs</span> {match.teamB}
-                      </div>
-                      <div className="text-sm text-slate-500">{match.location}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-slate-900 text-lg">
-                      {match.scoreA} - {match.scoreB}
-                    </div>
-                    <div className="text-xs text-green-600 font-medium">Won</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 text-center">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => navigate('/school/fixtures')}
-                className="w-full sm:w-auto"
-              >
-                View All History
-              </Button>
-            </div>
-          </Card>
-        </div>
-
+      <div className="space-y-8">
         <div className="space-y-6">
           <Card title="Quick Actions">
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Button 
                 variant="secondary" 
                 className="w-full justify-between"
@@ -118,27 +123,51 @@ export const SchoolDashboard = () => {
               </Button>
             </div>
           </Card>
-          
-          <Card title="Upcoming Events">
-            <ul className="space-y-4">
-              <li className="flex gap-3">
-                <div className="w-1 bg-blue-500 rounded-full h-full"></div>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">City Winter Championship</p>
-                  <p className="text-xs text-slate-500">Starts Nov 1st</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <div className="w-1 bg-yellow-500 rounded-full h-full"></div>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Inter-House Football</p>
-                  <p className="text-xs text-slate-500">Registration Closes in 2 days</p>
-                </div>
-              </li>
-            </ul>
+
+          <Card title="Recent Match Results">
+            {data.recentMatches && data.recentMatches.length > 0 ? (
+              <div className="space-y-4">
+                {data.recentMatches.map((match, idx) => (
+                  <div key={match._id || idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100/50">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0 w-12 text-center bg-white p-2 rounded border border-slate-100 shadow-sm">
+                        <span className="block text-[10px] text-slate-500 font-bold uppercase">{match.sport?.slice(0,3)}</span>
+                        <span className="block font-bold text-slate-800 leading-tight">{new Date(match.date).getDate()}</span>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900 text-sm md:text-base">
+                          {match.teamA?.name} <span className="text-slate-400 mx-1 font-normal text-sm">vs</span> {match.teamB?.name}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">{match.location || 'Home Ground'}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-black tracking-tight text-slate-900 text-lg md:text-xl">
+                        {match.scoreA ?? '-'} : {match.scoreB ?? '-'}
+                      </div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mt-0.5">Final</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                No recent matches recorded yet.
+              </div>
+            )}
+            <div className="mt-4 text-center">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/school/fixtures')}
+                className="w-full sm:w-auto"
+              >
+                View All History
+              </Button>
+            </div>
           </Card>
         </div>
-      </div>
-    </DashboardLayout>
+      </div></>
+    
   );
 };

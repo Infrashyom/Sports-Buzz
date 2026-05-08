@@ -1,20 +1,53 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { MOCK_TOURNAMENTS, MOCK_POINTS_TABLE, MOCK_TEAMS } from '../../services/mockData';
 import { Trophy, Calendar, Users, Search, CheckCircle, MapPin, Award, User, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Tournament } from '../../types';
+import { Tournament, Team } from '../../types';
 import { StandingsTable } from '../../components/fixtures/StandingsTable';
-
-import { exportToExcel } from '../../services/export';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 
 export const SchoolTournaments = () => {
+  const { user } = useAuth();
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [myTeams, setMyTeams] = useState<Team[]>([]);
   const [viewMode, setViewMode] = useState<'BROWSE' | 'MY'>('BROWSE');
   const [filter, setFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   
+  const fetchTournaments = React.useCallback(async () => {
+      try {
+          const res = await api.get('/tournaments');
+          setTournaments(res.data.data.tournaments);
+      } catch {
+          toast.error("Failed to load tournaments");
+      } finally {
+          setIsLoading(false);
+      }
+  }, []);
+
+  const fetchMyTeams = React.useCallback(async () => {
+      try {
+          const mySchoolId = user?.schoolId || user?.id;
+          if (!mySchoolId) return;
+          const res = await api.get(`/schools/${mySchoolId}/teams`);
+          const allTeams = res.data.data.teams;
+          // Result should already be filtered, ensuring compatibility
+          setMyTeams(allTeams);
+      } catch {
+          // ignore or toast
+      }
+  }, [user?.schoolId, user?.id]);
+
+  useEffect(() => {
+     fetchTournaments();
+     fetchMyTeams();
+  }, [fetchTournaments, fetchMyTeams]);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -27,12 +60,9 @@ export const SchoolTournaments = () => {
   // Registration Form State
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  // Mock School ID for context
-  const SCHOOL_ID = 's1'; 
-
-  // Reset pagination on filter change
-  // Removed useEffect to avoid cascading renders
+  const SCHOOL_ID = user?.schoolId || user?.id; 
 
   const handleViewModeChange = (mode: 'BROWSE' | 'MY') => {
     setViewMode(mode);
@@ -49,9 +79,17 @@ export const SchoolTournaments = () => {
     setCurrentPage(1);
   };
 
-  const filteredTournaments = MOCK_TOURNAMENTS.filter(t => {
+  const isParticipating = (tournament: Tournament) => {
+    // If any of my teams are in registeredTeams or if my school is in participatingSchools
+    const hasMyTeam = tournament.registeredTeams?.some(teamId => myTeams.find(t => (t.id === teamId || t._id === teamId)));
+    const hasMySchool = (tournament as any).participatingSchools?.some((s: any) => s._id === SCHOOL_ID || s === SCHOOL_ID);
+    return !!(hasMyTeam || hasMySchool);
+  };
+
+  const filteredTournaments = tournaments.filter(t => {
+    if (!t.isPublished) return false;
     // 1. View Mode Filter (My Tournaments vs Browse)
-    if (viewMode === 'MY' && !t.participatingSchoolIds?.includes(SCHOOL_ID)) return false;
+    if (viewMode === 'MY' && !isParticipating(t)) return false;
     
     // 2. Status Filter
     if (filter !== 'ALL' && t.status !== filter) return false;
@@ -77,34 +115,39 @@ export const SchoolTournaments = () => {
     }
   };
 
-  const isParticipating = (tournament: Tournament) => {
-    return tournament.participatingSchoolIds?.includes(SCHOOL_ID);
-  };
-
   const getAvailableTeamsForSport = (sport: string) => {
-    return MOCK_TEAMS.filter(t => t.sport === sport && t.schoolId === SCHOOL_ID);
+    return myTeams.filter(t => t.sport === sport);
   };
 
-  const handleRegisterSubmit = () => {
-    // Logic to submit registration
-    setIsRegistrationSuccess(true);
-    setTimeout(() => {
-        setIsRegistrationSuccess(false);
-        setSelectedTournamentForRegistration(null);
-        setSelectedTeamId('');
-    }, 2000);
+  const handleRegisterSubmit = async () => {
+    if (!selectedTournamentForRegistration || !selectedTeamId) return;
+    setIsRegistering(true);
+    try {
+        await api.post(`/tournaments/${selectedTournamentForRegistration.id || selectedTournamentForRegistration._id}/register`, { teamId: selectedTeamId });
+        setIsRegistrationSuccess(true);
+        // Refresh tournaments
+        fetchTournaments();
+        setTimeout(() => {
+            setIsRegistrationSuccess(false);
+            setSelectedTournamentForRegistration(null);
+            setSelectedTeamId('');
+        }, 2000);
+    } catch {
+        toast.error("Failed to register. You might be already registered.");
+    } finally {
+        setIsRegistering(false);
+    }
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Tournament Hub</h1>
           <p className="text-slate-500">Discover leagues, register teams, and track competition status.</p>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => exportToExcel(currentTournaments, 'Tournaments')}>Export Excel</Button>
-          <div className="bg-white border border-slate-200 p-1 rounded-xl flex self-start md:self-auto shadow-sm">
+        <div className="flex bg-white border border-slate-200 p-1 rounded-xl flex self-start md:self-auto shadow-sm">
               <button 
                   onClick={() => handleViewModeChange('BROWSE')}
                   className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -155,7 +198,12 @@ export const SchoolTournaments = () => {
       </Card>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredTournaments.length === 0 ? (
+        {isLoading ? (
+            <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-slate-500">Loading tournaments...</p>
+            </div>
+        ) : filteredTournaments.length === 0 ? (
              <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
                 <Trophy className="h-10 w-10 mx-auto text-slate-300 mb-2" />
                 <p className="text-slate-500 font-medium">No tournaments found matching your criteria.</p>
@@ -163,14 +211,14 @@ export const SchoolTournaments = () => {
             </div>
         ) : (
             currentTournaments.map(tournament => (
-            <div key={tournament.id} className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+            <div key={tournament.id || tournament._id} className="bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-shadow">
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                 <div className="flex items-start gap-4 w-full lg:w-auto">
                     <div className={`h-14 w-14 md:h-16 md:w-16 rounded-xl flex items-center justify-center text-2xl md:text-3xl flex-shrink-0 ${
                     tournament.sport === 'Cricket' ? 'bg-blue-100' : 
-                    tournament.sport === 'Basketball' ? 'bg-orange-100' : 'bg-green-100'
+                    tournament.sport === 'Badminton' ? 'bg-orange-100' : 'bg-green-100'
                     }`}>
-                    {tournament.sport === 'Cricket' ? '🏏' : tournament.sport === 'Basketball' ? '🏀' : '🏸'}
+                    {tournament.sport === 'Cricket' ? '🏏' : tournament.sport === 'Badminton' ? '🏸' : '🏸'}
                     </div>
                     <div className="flex-1 min-w-0">
                     <div className="flex items-center flex-wrap gap-2 md:gap-3 mb-1">
@@ -191,7 +239,7 @@ export const SchoolTournaments = () => {
                         </div>
                         <div className="flex items-center">
                         <Users className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
-                        {tournament.teams} Teams
+                        {tournament.registeredTeams?.length || 0} Teams
                         </div>
                     </div>
                     </div>
@@ -259,7 +307,7 @@ export const SchoolTournaments = () => {
                  {/* Hero Info */}
                  <div className={`p-6 rounded-xl text-white ${
                      selectedTournamentForDetails.sport === 'Cricket' ? 'bg-gradient-to-r from-blue-600 to-blue-800' : 
-                     selectedTournamentForDetails.sport === 'Basketball' ? 'bg-gradient-to-r from-orange-500 to-orange-700' : 
+                     selectedTournamentForDetails.sport === 'Badminton' ? 'bg-gradient-to-r from-orange-500 to-orange-700' : 
                      'bg-gradient-to-r from-green-600 to-green-800'
                  }`}>
                      <div className="flex justify-between items-start">
@@ -323,7 +371,7 @@ export const SchoolTournaments = () => {
         {selectedTournamentForStandings && (
             <div className="space-y-4">
                 <StandingsTable 
-                    entries={MOCK_POINTS_TABLE.filter(e => e.tournamentId === selectedTournamentForStandings.id)} 
+                    entries={(selectedTournamentForStandings.pointsTable as any) || []} 
                     sport={selectedTournamentForStandings.sport} 
                 />
                 <div className="flex justify-end">
@@ -360,7 +408,7 @@ export const SchoolTournaments = () => {
                             >
                                 <option value="">-- Choose a Team --</option>
                                 {getAvailableTeamsForSport(selectedTournamentForRegistration.sport).map(team => (
-                                    <option key={team.id} value={team.id}>{team.name} (Coach: {team.coach})</option>
+                                    <option key={team.id || team._id} value={team.id || team._id}>{team.name}</option>
                                 ))}
                             </select>
                             {getAvailableTeamsForSport(selectedTournamentForRegistration.sport).length === 0 && (
@@ -374,10 +422,10 @@ export const SchoolTournaments = () => {
                             <Button variant="outline" onClick={() => setSelectedTournamentForRegistration(null)}>Cancel</Button>
                             <Button 
                                 onClick={handleRegisterSubmit} 
-                                disabled={!selectedTeamId}
+                                disabled={!selectedTeamId || isRegistering}
                                 className="px-6"
                             >
-                                Confirm Registration
+                                {isRegistering ? 'Registering...' : 'Confirm Registration'}
                             </Button>
                         </div>
                     </>
@@ -393,6 +441,7 @@ export const SchoolTournaments = () => {
             </div>
         )}
       </Modal>
-    </DashboardLayout>
+  </>
+    
   );
 };

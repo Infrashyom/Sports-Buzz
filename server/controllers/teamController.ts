@@ -4,8 +4,14 @@ import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
 
 export const getAllTeams = catchAsync(async (req: Request, res: Response) => {
-  let filter = {};
-  if (req.params.schoolId) filter = { schoolId: req.params.schoolId };
+  const filter: Record<string, any> = {};
+  const reqUser = (req as any).user;
+
+  if (reqUser && (reqUser.role === 'SCHOOL' || reqUser.role === 'STUDENT')) {
+    filter.schoolId = reqUser.schoolId;
+  } else if (req.params.schoolId) {
+    filter.schoolId = req.params.schoolId;
+  }
 
   const teams = await Team.find(filter).populate('players');
 

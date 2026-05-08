@@ -4,6 +4,7 @@ export const connectDB = async () => {
   try {
     if (!process.env.MONGODB_URI) {
       console.warn('MONGODB_URI is not set. Skipping database connection.');
+      mongoose.set('bufferCommands', false);
       return;
     }
     const conn = await mongoose.connect(process.env.MONGODB_URI);

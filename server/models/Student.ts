@@ -8,7 +8,7 @@ const studentSchema = new mongoose.Schema({
   gender: { type: String, enum: ['Male', 'Female', 'Other'], required: true },
   schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
   sports: [{ type: String }], // e.g., ['Cricket', 'Basketball']
-  status: { type: String, enum: ['Active', 'Injured', 'Alumni'], default: 'Active' },
+  status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
   avatar: { type: String },
   badges: [{ type: String }], // e.g., ['Man of the Match', 'Best Defender']
   stats: {

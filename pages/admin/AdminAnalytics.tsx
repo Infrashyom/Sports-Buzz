@@ -1,46 +1,45 @@
-import React from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import { useEffect, useState } from 'react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card } from '../../components/ui/Card';
-import { MOCK_STATS_PARTICIPATION, MOCK_STATS_REVENUE } from '../../services/mockData';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-
-import { exportToExcel } from '../../services/export';
-import { Button } from '../../components/ui/Button';
+import api from '../../services/api';
 
 export const AdminAnalytics = () => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
-  // Mock data for new charts
-  const REGISTRATION_GROWTH = [
-      { name: 'Jan', schools: 2, students: 120 },
-      { name: 'Feb', schools: 5, students: 350 },
-      { name: 'Mar', schools: 8, students: 580 },
-      { name: 'Apr', schools: 12, students: 900 },
-      { name: 'May', schools: 15, students: 1200 },
-      { name: 'Jun', schools: 18, students: 1500 },
-  ];
+  const [data, setData] = useState({
+      participationBySport: [],
+      tournamentStatus: [],
+      registrationGrowth: [],
+      matchesMonthly: []
+  });
+  const [loading, setLoading] = useState(true);
 
-  const TOURNAMENT_STATUS = [
-      { name: 'Completed', value: 12 },
-      { name: 'Ongoing', value: 5 },
-      { name: 'Upcoming', value: 8 },
-  ];
+  useEffect(() => {
+     api.get('/admin/analytics').then(res => {
+         setData(res.data.data);
+     }).catch(err => {
+         console.error('Failed to load analytics', err);
+     }).finally(() => setLoading(false));
+  }, []);
 
-  return (
-    <DashboardLayout>
+  if (loading) {
+      return <div className="p-8 text-center text-slate-500">Loading analytics...</div>;
+  }
+
+  return (<>
+    
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Platform Analytics</h1>
           <p className="text-slate-500">Deep dive into engagement and growth metrics.</p>
         </div>
-        <Button variant="outline" onClick={() => exportToExcel(REGISTRATION_GROWTH, 'Analytics')}>Export Excel</Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
          <Card title="Registration Growth">
             <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={REGISTRATION_GROWTH}>
+                <AreaChart data={data.registrationGrowth}>
                     <defs>
                         <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -62,7 +61,7 @@ export const AdminAnalytics = () => {
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={MOCK_STATS_PARTICIPATION}
+                            data={data.participationBySport}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
@@ -72,7 +71,7 @@ export const AdminAnalytics = () => {
                             dataKey="value"
                             label
                         >
-                            {MOCK_STATS_PARTICIPATION.map((entry, index) => (
+                            {data.participationBySport.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
@@ -87,13 +86,13 @@ export const AdminAnalytics = () => {
           <Card title="Tournament Status Distribution">
                <div className="h-80 w-full">
                    <ResponsiveContainer width="100%" height="100%">
-                       <BarChart data={TOURNAMENT_STATUS} layout="vertical">
+                       <BarChart data={data.tournamentStatus} layout="vertical">
                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                            <XAxis type="number" hide />
                            <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} />
                            <Tooltip />
                            <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={40}>
-                               {TOURNAMENT_STATUS.map((entry, index) => (
+                               {data.tournamentStatus.map((entry, index) => (
                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                ))}
                            </Bar>
@@ -105,7 +104,7 @@ export const AdminAnalytics = () => {
           <Card title="Matches Played (Monthly)">
              <div className="h-80 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={MOCK_STATS_REVENUE}> {/* Reusing mock data structure for demo */}
+                <BarChart data={data.matchesMonthly}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} />
                     <YAxis axisLine={false} tickLine={false} />
@@ -115,7 +114,7 @@ export const AdminAnalytics = () => {
                 </ResponsiveContainer>
              </div>
           </Card>
-      </div>
-    </DashboardLayout>
+      </div></>
+    
   );
 };

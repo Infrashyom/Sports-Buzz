@@ -30,6 +30,7 @@ export interface Facility {
 
 export interface School {
   id: string;
+  _id?: string;
   name: string;
   address: string;
   contactEmail: string;
@@ -46,6 +47,7 @@ export interface School {
 
 export interface Student {
   id: string;
+  _id?: string;
   name: string;
   studentId: string; // Internal School ID
   grade: string; // e.g. "10th", "11th"
@@ -53,18 +55,19 @@ export interface Student {
   gender: 'Male' | 'Female' | 'Other';
   schoolId: string;
   sports: string[]; // List of sports they play
-  status: 'Active' | 'Injured' | 'Alumni';
+  status: 'Active' | 'Inactive';
   avatar?: string;
   badges?: string[]; // List of badges/awards
 }
 
 export interface Team {
   id: string;
+  _id?: string;
   name: string;
   sport: string;
   schoolId: string;
-  coach: string;
   playerIds: string[]; // IDs of Students
+  players?: any[]; // Populated student objects
   season: string;
   stats: {
     played: number;
@@ -76,6 +79,7 @@ export interface Team {
 
 export interface Sport {
   id: string;
+  _id?: string;
   name: string;
   type: 'Indoor' | 'Outdoor';
   icon: string;
@@ -84,6 +88,7 @@ export interface Sport {
 
 export interface Match {
   id: string;
+  _id?: string;
   tournamentId?: string; // Link to tournament
   sport: string;
   date: string;
@@ -119,8 +124,8 @@ export interface Tournament {
   startDate: string;
   endDate: string;
   sport: string;
-  teams: number;
-  // Extended details
+  isPublished?: boolean;
+  registeredTeams?: string[];
   description?: string;
   location?: string;
   participatingSchoolIds?: string[];

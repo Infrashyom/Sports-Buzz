@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { School } from '../models/School';
 import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
+import cloudinary from '../utils/cloudinary';
 
 export const getAllSchools = catchAsync(async (req: Request, res: Response) => {
   const schools = await School.find();
@@ -16,7 +17,12 @@ export const getAllSchools = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getSchool = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  const school = await School.findById(req.params.id).populate('adminUserId');
+  let school;
+  try {
+    school = await School.findById(req.params.id).populate('adminUserId');
+  } catch {
+    // Ignore cast errors
+  }
 
   if (!school) {
     return next(new AppError('No school found with that ID', 404));
@@ -31,6 +37,17 @@ export const getSchool = catchAsync(async (req: Request, res: Response, next: Ne
 });
 
 export const updateSchool = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  if (req.body.logo && req.body.logo.startsWith('data:image')) {
+    try {
+      const uploadRes = await cloudinary.uploader.upload(req.body.logo, {
+        folder: 'sportsbuzz/schools',
+      });
+      req.body.logo = uploadRes.secure_url;
+    } catch {
+      console.error('Cloudinary upload error');
+    }
+  }
+
   const school = await School.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
@@ -49,7 +66,12 @@ export const updateSchool = catchAsync(async (req: Request, res: Response, next:
 });
 
 export const addFacility = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  const school = await School.findById(req.params.id);
+  let school;
+  try {
+    school = await School.findById(req.params.id);
+  } catch {
+    // Ignore cast errors
+  }
 
   if (!school) {
     return next(new AppError('No school found with that ID', 404));
@@ -63,5 +85,82 @@ export const addFacility = catchAsync(async (req: Request, res: Response, next: 
     data: {
       school,
     },
+  });
+});
+
+export const updateFacility = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  let school;
+  try {
+    school = await School.findById(req.params.id);
+  } catch {
+    // Ignore cast errors
+  }
+
+  if (!school) return next(new AppError('No school found with that ID', 404));
+
+  const facility = school.facilities.id(String(req.params.facilityId));
+  if (!facility) return next(new AppError('No facility found with that ID', 404));
+
+  if (req.body.status) {
+    facility.status = req.body.status;
+  }
+  await school.save();
+
+  res.status(200).json({
+    status: 'success',
+    data: { school }
+  });
+});
+
+export const getDashboardData = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  let school;
+  try {
+    school = await School.findById(req.params.id);
+  } catch {
+    // Ignore cast errors
+  }
+
+  if (!school) {
+    return next(new AppError('No school found', 404));
+  }
+
+  // Find all teams for this school
+  const { Team } = await import('../models/Team');
+  const { Student } = await import('../models/Student');
+  const { Match } = await import('../models/Match');
+
+  const teams = await Team.find({ schoolId: school._id });
+  const teamIds = teams.map(t => t._id);
+
+  const totalAthletes = await Student.countDocuments({ schoolId: school._id });
+  
+  // Recent Matches
+  const recentMatches = await Match.find({ 
+    $or: [{ teamA: { $in: teamIds } }, { teamB: { $in: teamIds } }],
+    status: { $in: ['COMPLETED', 'VERIFIED'] }
+  })
+  .populate('teamA', 'name')
+  .populate('teamB', 'name')
+  .sort('-date')
+  .limit(3);
+
+  // Next Match
+  const nextMatch = await Match.findOne({
+    $or: [{ teamA: { $in: teamIds } }, { teamB: { $in: teamIds } }],
+    status: { $in: ['SCHEDULED', 'UPCOMING'] }
+  })
+  .populate('teamA', 'name')
+  .populate('teamB', 'name')
+  .sort('date');
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      schoolName: school.name,
+      cityRank: school.cityRank,
+      totalAthletes,
+      recentMatches,
+      nextMatch
+    }
   });
 });

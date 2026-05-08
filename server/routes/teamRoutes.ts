@@ -4,9 +4,10 @@ import * as authMiddleware from '../middleware/auth';
 
 const router = express.Router({ mergeParams: true });
 
+router.use(authMiddleware.protect);
+
 router.get('/', teamController.getAllTeams);
 
-router.use(authMiddleware.protect);
 router.use(authMiddleware.restrictTo('SCHOOL', 'ADMIN'));
 
 router.post('/', teamController.createTeam);

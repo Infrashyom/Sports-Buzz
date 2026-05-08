@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Match, Student } from '../../types';
-import { MOCK_TEAMS, MOCK_STUDENTS, MOCK_REFEREES } from '../../services/mockData';
 import { Flag, MapPin, Clock, Edit2, Award, Medal } from 'lucide-react';
 import { Button } from '../ui/Button';
+import api from '../../services/api';
 
 interface MatchDetailModalProps {
   match: Match | null;
   onClose: () => void;
   isAdmin?: boolean;
+  teams?: any[];
+  students?: any[];
+  referees?: any[];
 }
 
-export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ match, onClose, isAdmin = false }) => {
+export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ match, onClose, isAdmin = false, teams = [], students = [], referees = [] }) => {
   const [detailTab, setDetailTab] = useState<'SUMMARY' | 'SQUADS'>('SUMMARY');
   const [isEditingReferee, setIsEditingReferee] = useState(false);
   const [selectedRefereeId, setSelectedRefereeId] = useState(match?.refereeId || '');
@@ -27,44 +30,55 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ match, onClo
   if (!match) return null;
 
   const getRefereeName = (id: string) => {
-    const ref = MOCK_REFEREES.find(r => r.id === id);
+    const ref = referees.find(r => r.id === id || r._id === id);
     return ref ? ref.name : 'Unassigned';
   };
 
   const getPlayerName = (id: string) => {
-    const player = MOCK_STUDENTS.find(s => s.id === id);
+    const player = students.find(s => s.id === id || s._id === id);
     return player ? player.name : 'Unknown Player';
   };
 
-  const handleSaveReferee = () => {
-    // In a real app, this would call an API
-    console.log(`Saving referee ${selectedRefereeId} for match ${match.id}`);
-    setIsEditingReferee(false);
+  const handleSaveReferee = async () => {
+    try {
+        const id = match._id || match.id;
+        await api.patch(`/matches/${id}`, { refereeId: selectedRefereeId });
+        setIsEditingReferee(false);
+        // We'd ideally need a callback to refresh data here or optimistically update
+    } catch {
+        console.log(`Failed saving referee ${selectedRefereeId} for match ${match.id}`);
+    }
   };
 
-  const handleSaveMOTM = () => {
-    // In a real app, this would call an API
-    console.log(`Saving MOTM ${selectedMOTMId} for match ${match.id}`);
-    setIsEditingMOTM(false);
+  const handleSaveMOTM = async () => {
+    try {
+        const id = match._id || match.id;
+        await api.patch(`/matches/${id}`, { manOfTheMatchId: selectedMOTMId });
+        setIsEditingMOTM(false);
+        // We'd ideally need a callback to refresh data here or optimistically update
+    } catch {
+        console.log(`Failed saving MOTM ${selectedMOTMId} for match ${match.id}`);
+    }
   };
 
-  const handleAssignBadge = () => {
+  const handleAssignBadge = async () => {
     if (selectedPlayerForBadge && badgeName) {
-        // In a real app, this would call an API
-        console.log(`Assigning badge ${badgeName} to player ${selectedPlayerForBadge.id}`);
-        
-        // Optimistic update (if we were using state for players, but here we just log)
-        // const updatedPlayer = { ...selectedPlayerForBadge, badges: [...(selectedPlayerForBadge.badges || []), badgeName] };
-        
-        setSelectedPlayerForBadge(null);
-        setBadgeName('');
+        try {
+            const playerId = selectedPlayerForBadge._id || selectedPlayerForBadge.id;
+            const updatedBadges = [...(selectedPlayerForBadge.badges || []), badgeName];
+            await api.patch(`/students/${playerId}`, { badges: updatedBadges });
+            setSelectedPlayerForBadge(null);
+            setBadgeName('');
+        } catch {
+             console.log(`Failed saving badge`);
+        }
     }
   };
 
   const getSquadForTeam = (teamName: string): Student[] => {
-    const team = MOCK_TEAMS.find(t => t.name === teamName);
+    const team = teams?.find(t => t.name === teamName || t.id === teamName || t._id === teamName);
     if (!team) return []; 
-    return team.playerIds.map(pid => MOCK_STUDENTS.find(s => s.id === pid)).filter((s): s is Student => !!s);
+    return team.playerIds.map((pid: string) => students?.find(s => s.id === pid || s._id === pid)).filter((s: Student | undefined): s is Student => !!s);
   };
 
   const allPlayers = [
@@ -90,9 +104,26 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ match, onClo
                         <h3 className="text-lg md:text-2xl font-bold">{match.teamA}</h3>
                     </div>
                     <div className="bg-slate-800 px-4 py-2 md:px-6 md:py-3 rounded-lg border border-slate-700 min-w-[120px] text-center">
+                        {match.sport === 'Cricket' ? (
+                            <>
+                                <span className="text-xl md:text-3xl font-mono font-bold text-white tracking-widest whitespace-nowrap">
+                                    {match.scoreA ?? 0}/{match.details?.wicketsA ?? 0} - {match.scoreB ?? 0}/{match.details?.wicketsB ?? 0}
+                                </span>
+                                <div className="text-xs text-slate-400 mt-1">Overs: {match.details?.overs ?? '0.0'}</div>
+                            </>
+                        ) : match.sport === 'Badminton' ? (
+                            <>
+                                <span className="text-xl md:text-3xl font-mono font-bold text-white tracking-widest whitespace-nowrap">
+                                    {match.scoreA ?? 0} - {match.scoreB ?? 0}
+                                </span>
+                                <div className="text-xs text-slate-400 mt-1">Sets</div>
+                                {match.details?.quarters && <div className="text-[10px] text-slate-300 mt-1 opacity-80">{match.details.quarters}</div>}
+                            </>
+                        ) : (
                             <span className="text-xl md:text-3xl font-mono font-bold text-white tracking-widest whitespace-nowrap">
-                            {match.scoreA ?? 0} - {match.scoreB ?? 0}
+                                {match.scoreA ?? 0} - {match.scoreB ?? 0}
                             </span>
+                        )}
                     </div>
                     <div className="flex-1 text-center md:text-right">
                         <h3 className="text-lg md:text-2xl font-bold">{match.teamB}</h3>
@@ -162,8 +193,8 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ match, onClo
                                         onChange={(e) => setSelectedRefereeId(e.target.value)}
                                     >
                                         <option value="">Select Referee</option>
-                                        {MOCK_REFEREES.map(ref => (
-                                            <option key={ref.id} value={ref.id}>{ref.name}</option>
+                                        {referees.map(ref => (
+                                            <option key={ref.id || ref._id} value={ref.id || ref._id}>{ref.name}</option>
                                         ))}
                                     </select>
                                     <div className="flex justify-end space-x-2">

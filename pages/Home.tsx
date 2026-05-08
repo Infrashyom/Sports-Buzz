@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { ArrowRight, Activity, Users, Trophy, BarChart2, Play, Zap } from 'lucide-react';
 import api from '../services/api';
-import { MOCK_GALLERY } from '../services/mockData';
 
 interface GalleryItem {
   _id: string;
@@ -19,19 +18,14 @@ export const Home = () => {
     const fetchGallery = async () => {
       try {
         const res = await api.get('/gallery');
-        if (res.data.data.items.length === 0) {
-          setGalleryItems(MOCK_GALLERY);
-        } else {
-          setGalleryItems(res.data.data.items);
-        }
+        setGalleryItems(res.data.data.items);
       } catch (error) {
         console.error('Failed to fetch gallery', error);
-        setGalleryItems(MOCK_GALLERY);
       }
     };
     fetchGallery();
   }, []);
-  return (
+  return (<>
     <PublicLayout>
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden bg-[#0A0F1C]">
@@ -123,13 +117,13 @@ export const Home = () => {
             {[...Array(2)].map((_, i) => (
               <React.Fragment key={i}>
                 {[
+                  { name: 'Cricket', img: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80' },
+                  { name: 'Badminton', img: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Basketball', img: 'https://images.unsplash.com/photo-1504450758481-7338eba7524a?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Football', img: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Tennis', img: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Volleyball', img: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=600&q=80' },
-                  { name: 'Badminton', img: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Track & Field', img: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80' },
-                  { name: 'Cricket', img: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80' },
                   { name: 'Chess', img: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=600&q=80' },
                 ].map((sport, idx) => (
                   <div key={`${i}-${idx}`} className="w-[280px] h-[350px] relative rounded-2xl overflow-hidden flex-shrink-0 border border-white/10 group/card">
@@ -299,6 +293,6 @@ export const Home = () => {
           </Link>
         </div>
       </section>
-    </PublicLayout>
+    </PublicLayout></>
   );
 };

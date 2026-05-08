@@ -6,6 +6,7 @@ import { User } from '../models/User';
 import { School } from '../models/School';
 import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
+import cloudinary from '../utils/cloudinary';
 
 const signToken = (id: string) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'secret', {
@@ -14,7 +15,7 @@ const signToken = (id: string) => {
 };
 
 export const register = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  const { name, email, password, role, mobile, schoolName, schoolAddress, schoolEmail } = req.body;
+  const { name, email, password, role, mobile, schoolName, schoolAddress, schoolEmail, schoolId } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -29,6 +30,7 @@ export const register = catchAsync(async (req: Request, res: Response, next: Nex
     password: hashedPassword,
     role,
     mobile,
+    schoolId,
   });
 
   if (role === 'SCHOOL') {
@@ -56,29 +58,11 @@ export const register = catchAsync(async (req: Request, res: Response, next: Nex
   });
 });
 
-export const mockUsers: Record<string, Record<string, unknown>> = {
-  'admin@sportsbuzz.com': { _id: 'mock-admin-id', id: 'mock-admin-id', name: 'Super Admin', email: 'admin@sportsbuzz.com', role: 'ADMIN', status: 'Active', password: 'password123', avatar: '' },
-  'school@springfield.edu': { _id: 'mock-school-id', id: 'mock-school-id', name: 'Principal Skinner', email: 'school@springfield.edu', role: 'SCHOOL', status: 'Active', password: 'password123', avatar: '' },
-  'referee@sportsbuzz.com': { _id: 'mock-referee-id', id: 'mock-referee-id', name: 'John Referee', email: 'referee@sportsbuzz.com', role: 'REFEREE', status: 'Active', password: 'password123', avatar: '' },
-  'student@springfield.edu': { _id: 'mock-student-id', id: 'mock-student-id', name: 'Bart Simpson', email: 'student@springfield.edu', role: 'STUDENT', status: 'Active', password: 'password123', avatar: '' }
-};
-
 export const login = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return next(new AppError('Please provide email and password', 400));
-  }
-
-  // Demo accounts bypass
-  if (mockUsers[email] && password === mockUsers[email].password) {
-    const user = mockUsers[email];
-    const token = signToken(user._id as string);
-    return res.status(200).json({
-      status: 'success',
-      token,
-      data: { user },
-    });
   }
 
   const user = await User.findOne({ email }).select('+password');
@@ -100,18 +84,10 @@ export const login = catchAsync(async (req: Request, res: Response, next: NextFu
 
 export const getMe = catchAsync(async (req: Request, res: Response) => {
   // User is attached by auth middleware
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const reqUser = (req as any).user;
-  
-  if (reqUser.id && reqUser.id.startsWith('mock-')) {
-    const mockUser = Object.values(mockUsers).find(u => u.id === reqUser.id);
-    return res.status(200).json({
-      status: 'success',
-      data: { user: mockUser || reqUser },
-    });
-  }
 
-  const user = await User.findById(reqUser.id);
+  const user = await User.findById(reqUser.id).populate('schoolId');
 
   res.status(200).json({
     status: 'success',
@@ -122,24 +98,33 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const updateMe = catchAsync(async (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const reqUser = (req as any).user;
   
-  if (reqUser.id && reqUser.id.startsWith('mock-')) {
-    const mockUser = Object.values(mockUsers).find(u => u.id === reqUser.id);
-    if (mockUser) {
-      if (req.body.avatar !== undefined) mockUser.avatar = req.body.avatar;
-      if (req.body.name !== undefined) mockUser.name = req.body.name;
+  let avatarUrl = req.body.avatar;
+
+  if (avatarUrl && avatarUrl.startsWith('data:image')) {
+    try {
+      const uploadRes = await cloudinary.uploader.upload(avatarUrl, {
+        folder: 'sportsbuzz/avatars',
+      });
+      avatarUrl = uploadRes.secure_url;
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      // If Cloudinary fails, we can either throw an error or just keep the base64.
+      // For now, we'll keep the base64 as a fallback if Cloudinary is not configured.
     }
-    return res.status(200).json({
-      status: 'success',
-      data: { user: mockUser || reqUser },
-    });
   }
+
+  const updateData: any = {};
+  if (avatarUrl) updateData.avatar = avatarUrl;
+  if (req.body.name !== undefined) updateData.name = req.body.name;
+  if (req.body.availability !== undefined) updateData.availability = req.body.availability;
+  if (req.body.mobile !== undefined) updateData.mobile = req.body.mobile;
 
   const updatedUser = await User.findByIdAndUpdate(
     reqUser.id,
-    { avatar: req.body.avatar, name: req.body.name },
+    updateData,
     { new: true, runValidators: true }
   );
 
@@ -149,25 +134,51 @@ export const updateMe = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+export const addCertification = catchAsync(async (req: Request, res: Response) => {
+  const reqUser = (req as any).user;
+  const { name, authority, validUntil } = req.body;
+  let fileUrl = req.body.fileUrl; // This will be the base64 of the image/pdf
+
+  if (fileUrl && fileUrl.startsWith('data:')) {
+    try {
+      const uploadRes = await cloudinary.uploader.upload(fileUrl, {
+        folder: 'sportsbuzz/certifications',
+        resource_type: 'auto'
+      });
+      fileUrl = uploadRes.secure_url;
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+    }
+  }
+
+  const newCertification = {
+    name,
+    authority,
+    validUntil: validUntil ? new Date(validUntil) : undefined,
+    licenseId: fileUrl, // using licenseId to store the url for simplicity if not adding another field
+    status: 'Pending'
+  };
+
+  const updatedUser = await User.findByIdAndUpdate(
+    reqUser.id,
+    { $push: { certifications: newCertification } },
+    { new: true, runValidators: true }
+  ).populate('schoolId');
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user: updatedUser,
+    },
+  });
+});
+
 export const updatePassword = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reqUser = (req as any).user;
   const { currentPassword, newPassword } = req.body;
 
   if (!currentPassword || !newPassword) {
     return next(new AppError('Please provide current and new password', 400));
-  }
-
-  if (reqUser.id && reqUser.id.startsWith('mock-')) {
-    const mockUser = Object.values(mockUsers).find(u => u.id === reqUser.id);
-    if (!mockUser || mockUser.password !== currentPassword) {
-      return next(new AppError('Incorrect current password', 401));
-    }
-    mockUser.password = newPassword;
-    return res.status(200).json({
-      status: 'success',
-      message: 'Password updated successfully'
-    });
   }
 
   const user = await User.findById(reqUser.id).select('+password');

@@ -2,16 +2,17 @@ import mongoose from 'mongoose';
 
 const tournamentSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  sport: { type: String, required: true }, // Could be a reference to a Sport model if needed
+  sport: { type: String, required: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
   status: { type: String, enum: ['UPCOMING', 'ONGOING', 'COMPLETED'], default: 'UPCOMING' },
   description: { type: String },
   location: { type: String },
-  organizer: { type: String }, // Or ref to User/Admin
+  organizer: { type: String },
   prizePool: { type: String },
   participatingSchools: [{ type: mongoose.Schema.Types.ObjectId, ref: 'School' }],
-  teams: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Team' }], // Teams registered for this tournament
+  teams: { type: Number, default: 0 },
+  registeredTeams: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Team' }],
   pointsTable: [{
     team: { type: String },
     played: { type: Number, default: 0 },
@@ -22,6 +23,7 @@ const tournamentSchema = new mongoose.Schema({
     diff: { type: Number, default: 0 }
   }],
   refereeEditedPointsTable: { type: Boolean, default: false },
+  isPublished: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 

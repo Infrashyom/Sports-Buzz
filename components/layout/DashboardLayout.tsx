@@ -17,13 +17,16 @@ import {
   User,
   Briefcase,
   Camera,
-  Key
+  Key,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '../../types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import toast from 'react-hot-toast';
+
+const DashboardLayoutContext = createContext(false);
 
 interface NavItemProps {
   to: string;
@@ -51,29 +54,43 @@ const NavItem = ({ to, icon: Icon, label, onClick }: NavItemProps) => {
   );
 };
 
-const DashboardLayoutContext = createContext(false);
-
 export const DashboardLayout = ({ children }: { children?: React.ReactNode }) => {
   const isNested = useContext(DashboardLayoutContext);
   const { user, logout, updateProfile, updatePassword } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [logoUrl, setLogoUrl] = useState('');
-  const [platformName, setPlatformName] = useState('Sports Buzz');
+  
+  // Use user?.avatar as the source of truth, but allow local override for immediate feedback
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+  const avatarUrl = localAvatarUrl || user?.avatar || '';
 
-  useEffect(() => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const getInitialContact = () => {
     const savedContact = localStorage.getItem('sportsBuzzContact');
     if (savedContact) {
-      const parsed = JSON.parse(savedContact);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.logoUrl) setLogoUrl(parsed.logoUrl);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.platformName) setPlatformName(parsed.platformName);
+      try {
+        return JSON.parse(savedContact);
+      } catch {
+        return {};
+      }
     }
+    return {};
+  };
+
+  const initialContact = getInitialContact();
+
+  const [logoUrl, setLogoUrl] = useState(initialContact.logoUrl || '');
+  const [platformName, setPlatformName] = useState(initialContact.platformName || 'Sports Buzz');
+
+  useEffect(() => {
+    const handleLogoUpdated = () => {
+      const contact = getInitialContact();
+      setLogoUrl(contact.logoUrl || '');
+      setPlatformName(contact.platformName || 'Sports Buzz');
+    };
+    window.addEventListener('logoUpdated', handleLogoUpdated);
+    return () => window.removeEventListener('logoUpdated', handleLogoUpdated);
   }, []);
 
   const [passwordData, setPasswordData] = useState({
@@ -81,6 +98,15 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
     new: '',
     confirm: ''
   });
+
+  // Removed problematic useEffect
+
+
+  if (isNested) {
+    return <>{children || <Outlet />}</>;
+  }
+
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const handleLogout = () => {
     logout();
@@ -90,15 +116,12 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // In a real app, you would upload the file to a server/S3 and get the URL back.
-      // Here we will just create an object URL and save it to the backend.
-      // Note: Object URLs are not persistent across reloads, so we should convert to base64 for demo purposes.
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
+        setLocalAvatarUrl(base64String); 
         try {
           await updateProfile({ avatar: base64String });
-          setAvatarUrl(base64String);
           toast.success("Profile picture updated successfully.");
         } catch {
           toast.error("Failed to update profile picture.");
@@ -123,27 +146,14 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
       toast.success("Password changed successfully.");
       setIsProfileModalOpen(false);
       setPasswordData({ current: '', new: '', confirm: '' });
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || "Failed to change password.");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to change password.");
     }
   };
 
-  // Close mobile menu when route changes
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  if (isNested) {
-    return <>{children || <Outlet />}</>;
-  }
-
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
-
   return (
     <DashboardLayoutContext.Provider value={true}>
-      <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-sans">
       
       {/* Mobile Header */}
       <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
@@ -218,7 +228,7 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
               <NavItem to="/school/profile" icon={School} label="School Profile" onClick={closeMobileMenu} />
               <NavItem to="/school/students" icon={Users} label="Student Athletes" onClick={closeMobileMenu} />
               <NavItem to="/school/teams" icon={Shirt} label="Teams" onClick={closeMobileMenu} />
-              <NavItem to="/school/staff" icon={Briefcase} label="Staff (Ref/Coach)" onClick={closeMobileMenu} />
+              <NavItem to="/school/staff" icon={ShieldCheck} label="Referees" onClick={closeMobileMenu} />
               
               <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Competition
@@ -232,7 +242,6 @@ export const DashboardLayout = ({ children }: { children?: React.ReactNode }) =>
             <>
               <NavItem to="/referee/dashboard" icon={LayoutDashboard} label="Stats & Overview" onClick={closeMobileMenu} />
               <NavItem to="/referee/matches" icon={ClipboardCheck} label="Match Management" onClick={closeMobileMenu} />
-              <NavItem to="/admin/tournaments" icon={Trophy} label="Tournaments & Points" onClick={closeMobileMenu} />
               <NavItem to="/referee/profile" icon={User} label="My Profile" onClick={closeMobileMenu} />
             </>
           )}

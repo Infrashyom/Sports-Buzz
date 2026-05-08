@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-import { MOCK_STUDENTS } from '../../services/mockData';
-import { Search, Plus, User, Ban, Edit2, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { Search, Plus, User, Ban, Edit2, ChevronLeft, ChevronRight, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Student } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 // Mock config from Admin (flexible grades)
 const ALLOWED_GRADES = ['6th', '7th', '8th', '9th', '10th', '11th', '12th'];
@@ -16,9 +16,33 @@ const ALLOWED_GRADES = ['6th', '7th', '8th', '9th', '10th', '11th', '12th'];
 import { exportToExcel } from '../../services/export';
 
 export const StudentManagement = () => {
-  const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS);
+  const { user } = useAuth();
+  const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSport, setFilterSport] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const targetId = user?.schoolId || user?.id;
+        if (targetId) {
+          const res = await api.get(`/schools/${targetId}/students`);
+          const formattedStudents = res.data.data.students.map((s: any) => ({
+            ...s,
+            id: s._id
+          }));
+          setStudents(formattedStudents);
+        }
+      } catch {
+        toast.error("Failed to load students");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (user) fetchStudents();
+  }, [user]);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -42,6 +66,7 @@ export const StudentManagement = () => {
   });
   
   const [sportInput, setSportInput] = useState('Cricket');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Filter logic
   const filteredStudents = students.filter(student => {
@@ -49,7 +74,8 @@ export const StudentManagement = () => {
     const matchesSearch = student.name.toLowerCase().includes(term) || 
                           student.studentId.toLowerCase().includes(term);
     const matchesSport = filterSport === 'All' || student.sports.includes(filterSport);
-    return matchesSearch && matchesSport;
+    const matchesStatus = filterStatus === 'All' || student.status === filterStatus;
+    return matchesSearch && matchesSport && matchesStatus;
   });
 
   // Pagination Logic
@@ -88,51 +114,56 @@ export const StudentManagement = () => {
           return;
       }
 
+      const targetId = user?.schoolId || user?.id;
+
       if (modalMode === 'ADD') {
         try {
             await api.post('/auth/register', {
                 name: formData.name,
-                email: `${formData.studentId}@springfield.edu`, // Mock email for student
+                email: formData.studentId, // We map this to student ID or an actual email for login
                 password: formData.password,
-                role: 'STUDENT'
+                role: 'STUDENT',
+                schoolId: targetId
             });
 
-            const student: Student = {
-                id: `new${Date.now()}`,
-                name: formData.name!,
-                studentId: formData.studentId!,
-                grade: formData.grade!,
-                dob: formData.dob!,
-                gender: formData.gender as 'Male' | 'Female' | 'Other',
-                schoolId: 's1',
-                sports: formData.sports!,
+            // After register, also create the student record
+            const studentRes = await api.post(`/schools/${targetId}/students`, {
+                name: formData.name,
+                studentId: formData.studentId,
+                grade: formData.grade,
+                dob: formData.dob,
+                gender: formData.gender,
+                sports: formData.sports,
                 status: 'Active'
-            };
-            setStudents([student, ...students]);
-            toast.success("Athlete registered successfully. Credentials sent to email.");
+            });
+            const sData = studentRes.data.data.student;
+            sData.id = sData._id;
+
+            setStudents([sData, ...students]);
+            toast.success("Athlete registered successfully.");
             setIsModalOpen(false);
         } catch {
-            // Fallback for demo
-            const student: Student = {
-                id: `new${Date.now()}`,
-                name: formData.name!,
-                studentId: formData.studentId!,
-                grade: formData.grade!,
-                dob: formData.dob!,
-                gender: formData.gender as 'Male' | 'Female' | 'Other',
-                schoolId: 's1',
-                sports: formData.sports!,
-                status: 'Active'
-            };
-            setStudents([student, ...students]);
-            toast.success("Athlete registered locally (Demo mode).");
-            setIsModalOpen(false);
+            toast.error("Failed to register athlete.");
         }
       } else {
         // Edit Mode
-        setStudents(students.map(s => s.id === formData.id ? { ...s, ...formData } as Student : s));
-        toast.success("Athlete details updated.");
-        setIsModalOpen(false);
+        try {
+            const studentRes = await api.patch(`/schools/${targetId}/students/${formData.id}`, {
+                name: formData.name,
+                studentId: formData.studentId,
+                grade: formData.grade,
+                dob: formData.dob,
+                gender: formData.gender,
+                sports: formData.sports
+            });
+            const updated = studentRes.data.data.student;
+            updated.id = updated._id;
+            setStudents(students.map(s => s.id === formData.id ? updated : s));
+            toast.success("Athlete details updated.");
+            setIsModalOpen(false);
+        } catch {
+            toast.error("Failed to update athlete details.");
+        }
       }
   };
 
@@ -141,24 +172,34 @@ export const StudentManagement = () => {
       setBanId(student.id);
   }
 
-  const handleToggleBan = () => {
-    if (banId) {
-        setStudents(students.map(s => {
-            if (s.id === banId) {
-                // Toggle between Active and Suspended (using 'Injured' or adding a new status in real app)
-                const newStatus = s.status === 'Active' ? 'Injured' : 'Active';
-                toast.success(`Athlete status changed to ${newStatus}.`);
-                return { ...s, status: newStatus }; 
-            }
-            return s;
-        }));
-        setBanId(null);
-        setSelectedStudentForBan(null);
+  const handleToggleBan = async () => {
+    if (banId && selectedStudentForBan) {
+        const targetId = user?.schoolId || user?.id;
+        try {
+            const newStatus = selectedStudentForBan.status === 'Active' ? 'Inactive' : 'Active';
+            await api.patch(`/schools/${targetId}/students/${banId}`, { status: newStatus });
+            setStudents(students.map(s => {
+                if (s.id === banId) {
+                    return { ...s, status: newStatus }; 
+                }
+                return s;
+            }));
+            toast.success(`Athlete status changed to ${newStatus}.`);
+        } catch {
+            toast.error("Failed to change athlete status.");
+        } finally {
+            setBanId(null);
+            setSelectedStudentForBan(null);
+        }
     }
   };
 
-  return (
-    <DashboardLayout>
+  if (loading) {
+    return <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+  }
+
+  return (<>
+    
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Student Athletes</h1>
@@ -173,7 +214,7 @@ export const StudentManagement = () => {
       </div>
 
       <Card className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <input 
@@ -190,9 +231,17 @@ export const StudentManagement = () => {
             onChange={(e) => setFilterSport(e.target.value)}
           >
             <option value="All">All Sports</option>
-            <option value="Basketball">Basketball</option>
             <option value="Cricket">Cricket</option>
             <option value="Badminton">Badminton</option>
+          </select>
+          <select 
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-900 outline-none font-medium"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="All">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
           </select>
         </div>
       </Card>
@@ -248,8 +297,8 @@ export const StudentManagement = () => {
                         Active
                         </span>
                     ) : (
-                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-red-100 text-red-700 border border-red-200">
-                        Banned
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                        Inactive
                         </span>
                     )}
                     </td>
@@ -269,7 +318,7 @@ export const StudentManagement = () => {
                                     ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' 
                                     : 'text-green-500 hover:text-green-700 hover:bg-green-50'
                                 }`}
-                                title={student.status === 'Active' ? "Ban Student" : "Unban Student"}
+                                title={student.status === 'Active' ? "Deactivate Student" : "Activate Student"}
                             >
                                 {student.status === 'Active' ? <Ban className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
                             </button>
@@ -331,9 +380,10 @@ export const StudentManagement = () => {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">School ID <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Student ID (Internal) <span className="text-red-500">*</span></label>
                     <input 
                         type="text" 
+                        placeholder="e.g. STU-001"
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
                         value={formData.studentId}
                         onChange={(e) => setFormData({...formData, studentId: e.target.value})}
@@ -382,13 +432,22 @@ export const StudentManagement = () => {
                 {modalMode === 'ADD' && (
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">Initial Password <span className="text-red-500">*</span></label>
-                        <input 
-                            type="password" 
-                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
-                            placeholder="Set initial password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({...formData, password: e.target.value})}
-                        />
+                        <div className="relative">
+                          <input 
+                              type={showPassword ? "text" : "password"} 
+                              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors pr-10"
+                              placeholder="Set initial password"
+                              value={formData.password}
+                              onChange={(e) => setFormData({...formData, password: e.target.value})}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -402,10 +461,7 @@ export const StudentManagement = () => {
                         onChange={(e) => setSportInput(e.target.value)}
                     >
                         <option value="Cricket">Cricket</option>
-                        <option value="Basketball">Basketball</option>
                         <option value="Badminton">Badminton</option>
-                        <option value="Football">Football</option>
-                        <option value="Tennis">Tennis</option>
                     </select>
                     <Button onClick={handleAddSport} size="sm" type="button"><Plus className="h-4 w-4" /></Button>
                 </div>
@@ -438,7 +494,7 @@ export const StudentManagement = () => {
             : "Are you sure you want to reactivate this student account?"}
         confirmLabel={selectedStudentForBan?.status === 'Active' ? "Ban Athlete" : "Reactivate"}
         variant={selectedStudentForBan?.status === 'Active' ? "danger" : "primary"}
-      />
-    </DashboardLayout>
+      /></>
+    
   );
 };

@@ -1,9 +1,10 @@
-import React from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, School, Trophy, AlertCircle } from 'lucide-react';
-import { MOCK_STATS_PARTICIPATION } from '../../services/mockData';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
 
 interface StatCardProps {
   title: string;
@@ -29,25 +30,56 @@ const StatCard = ({ title, value, icon: Icon, color, trend }: StatCardProps) => 
 );
 
 export const AdminDashboard = () => {
-  return (
-    <DashboardLayout>
+  const [data, setData] = useState<{
+    totalSchools: number;
+    activeStudents: number;
+    ongoingTournaments: number;
+    pendingApprovals: number;
+    recentSchools: any[];
+    participationBySport: any[];
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/admin/dashboard');
+        setData(res.data.data);
+      } catch (error) {
+        console.error('Failed to load admin stats:', error);
+        toast.error('Failed to load dashboard statistics');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+  }
+
+  if (!data) return null;
+
+  return (<>
+    
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Platform Overview</h1>
         <p className="text-slate-500">Welcome back, Admin. Here's what's happening today.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard title="Total Schools" value="48" icon={School} color="#3b82f6" trend="+2 this month" />
-        <StatCard title="Active Students" value="12,450" icon={Users} color="#10b981" trend="+5% growth" />
-        <StatCard title="Tournaments" value="6" icon={Trophy} color="#f59e0b" trend="2 ongoing" />
-        <StatCard title="Pending Approvals" value="12" icon={AlertCircle} color="#ef4444" trend="Requires attention" />
+        <StatCard title="Total Schools" value={data.totalSchools.toString()} icon={School} color="#3b82f6" trend="Registered" />
+        <StatCard title="Active Students" value={data.activeStudents.toLocaleString()} icon={Users} color="#10b981" trend="Registered" />
+        <StatCard title="Tournaments" value={data.ongoingTournaments.toString()} icon={Trophy} color="#f59e0b" trend="Ongoing" />
+        <StatCard title="Pending Approvals" value={data.pendingApprovals.toString()} icon={AlertCircle} color="#ef4444" trend="Requires attention" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card title="Participation by Sport">
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={MOCK_STATS_PARTICIPATION}>
+              <BarChart data={data.participationBySport}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />
@@ -61,36 +93,32 @@ export const AdminDashboard = () => {
         <Card title="Recent School Registrations">
           <div className="h-80 overflow-y-auto pr-2">
             <div className="space-y-4">
-              {[
-                { name: 'North Valley High', date: '2 hours ago', status: 'Pending' },
-                { name: 'St. Peter\'s Academy', date: '1 day ago', status: 'Approved' },
-                { name: 'Grand Oak International', date: '2 days ago', status: 'Approved' },
-                { name: 'City Public School', date: '3 days ago', status: 'Rejected' },
-                { name: 'Mountain View School', date: '4 days ago', status: 'Approved' },
-              ].map((school, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+              {data.recentSchools.map((school, index) => (
+                <div key={school._id || index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-3">
                       {school.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-900">{school.name}</p>
-                      <p className="text-xs text-slate-500">{school.date}</p>
+                      <p className="text-sm font-bold text-slate-900 truncate max-w-[150px] sm:max-w-xs">{school.name}</p>
+                      <p className="text-xs text-slate-500">{new Date(school.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                    school.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                    school.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
+                  <span className={`px-2 py-1 rounded-full text-[10px] sm:text-xs font-bold ${
+                    school.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' :
+                    'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {school.status}
+                    {school.paymentStatus || 'Pending'}
                   </span>
                 </div>
               ))}
+              {data.recentSchools.length === 0 && (
+                <div className="text-center text-slate-500 py-8">No recent registrations</div>
+              )}
             </div>
           </div>
         </Card>
-      </div>
-    </DashboardLayout>
+      </div></>
+    
   );
 };

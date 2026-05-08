@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { MOCK_TEAMS, MOCK_STUDENTS } from '../../services/mockData';
-import { Users, Plus, ChevronRight, Trophy, UserPlus, Trash2, User } from 'lucide-react';
-import { Team } from '../../types';
+import { Users, Plus, ChevronRight, Trophy, UserPlus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
-import { exportToExcel } from '../../services/export';
+interface Student {
+  _id: string;
+  id: string;
+  name: string;
+  grade: string;
+}
+
+interface Team {
+  _id?: string;
+  id?: string;
+  name: string;
+  sport: string;
+  schoolId: string;
+  players: any[];
+  season: string;
+  stats: any;
+}
 
 export const TeamManagement = () => {
-  const [teams, setTeams] = useState<Team[]>(MOCK_TEAMS);
+  const { user } = useAuth();
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
   
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -19,31 +37,62 @@ export const TeamManagement = () => {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
   // Form States
-  const [newTeam, setNewTeam] = useState({ name: '', sport: 'Cricket', coach: '', season: '2024' });
+  const [newTeam, setNewTeam] = useState({ name: '', sport: 'Cricket', season: '2024' });
   const [selectedStudentId, setSelectedStudentId] = useState('');
 
-  const getPlayerCount = (playerIds: string[]) => playerIds.length;
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        if (user?.schoolId) {
+          const res = await api.get(`/schools/${user.schoolId}/teams`);
+          setTeams(res.data.data.teams);
+        }
+      } catch {
+        toast.error('Failed to load teams');
+      }
+    };
+
+    const fetchStudents = async () => {
+      try {
+        if (user?.schoolId) {
+          const res = await api.get(`/schools/${user.schoolId}/students`);
+          const formatted = res.data.data.students.map((s: any) => ({ ...s, id: s._id }));
+          setAllStudents(formatted);
+        }
+      } catch {
+        toast.error('Failed to load students');
+      }
+    };
+
+    if (user) {
+      fetchTeams();
+      fetchStudents();
+    }
+  }, [user]);
+
+  const getPlayerCount = (players: any[]) => players?.length || 0;
   
   // Get available students (not in selected team)
-  const availableStudents = MOCK_STUDENTS.filter(s => 
-    selectedTeam ? !selectedTeam.playerIds.includes(s.id) : true
+  const availableStudents = allStudents.filter(s => 
+    selectedTeam ? !(selectedTeam.players || []).some((p: any) => p._id === s._id || p === s._id) : true
   );
 
-  const handleCreateTeam = () => {
-    const team: Team = {
-        id: `team${teams.length + 1}`,
+  const handleCreateTeam = async () => {
+    try {
+      const teamPayload = {
         name: newTeam.name,
         sport: newTeam.sport,
-        schoolId: 's1', // Hardcoded for demo
-        coach: newTeam.coach,
-        playerIds: [],
+        schoolId: user?.schoolId,
         season: newTeam.season,
-        stats: { played: 0, won: 0, lost: 0, draw: 0 }
-    };
-    setTeams([...teams, team]);
-    setIsCreateModalOpen(false);
-    setNewTeam({ name: '', sport: 'Cricket', coach: '', season: '2024' }); // Reset
-    toast.success("Team created successfully.");
+      };
+      const res = await api.post('/teams', teamPayload);
+      setTeams([...teams, res.data.data.team]);
+      setIsCreateModalOpen(false);
+      setNewTeam({ name: '', sport: 'Cricket', season: '2024' });
+      toast.success("Team created successfully.");
+    } catch {
+      toast.error("Failed to create team.");
+    }
   };
 
   const handleOpenRoster = (team: Team) => {
@@ -51,45 +100,50 @@ export const TeamManagement = () => {
     setIsRosterModalOpen(true);
   };
 
-  const handleAddPlayer = () => {
+  const handleAddPlayer = async () => {
     if (selectedTeam && selectedStudentId) {
-        const updatedTeam = { 
-            ...selectedTeam, 
-            playerIds: [...selectedTeam.playerIds, selectedStudentId] 
-        };
-        setTeams(teams.map(t => t.id === updatedTeam.id ? updatedTeam : t));
-        setSelectedTeam(updatedTeam);
+      try {
+        const currentPlayers = selectedTeam.players ? selectedTeam.players.map((p: any) => p._id || p) : [];
+        const updatedPlayers = [...currentPlayers, selectedStudentId];
+        const res = await api.patch(`/teams/${selectedTeam._id || selectedTeam.id}`, { players: updatedPlayers });
+        setTeams(teams.map(t => (t._id || t.id) === res.data.data.team._id ? res.data.data.team : t));
+        setSelectedTeam(res.data.data.team);
         setSelectedStudentId('');
         toast.success("Player added to roster.");
+      } catch {
+        toast.error("Failed to add player.");
+      }
     }
   };
 
-  const handleRemovePlayer = (playerId: string) => {
-      if (selectedTeam) {
-          const updatedTeam = {
-              ...selectedTeam,
-              playerIds: selectedTeam.playerIds.filter(id => id !== playerId)
-          };
-          setTeams(teams.map(t => t.id === updatedTeam.id ? updatedTeam : t));
-          setSelectedTeam(updatedTeam);
-          toast.success("Player removed from roster.");
+  const handleRemovePlayer = async (playerId: string) => {
+    if (selectedTeam) {
+      try {
+        const currentPlayers = selectedTeam.players ? selectedTeam.players.map((p: any) => p._id || p) : [];
+        const updatedPlayers = currentPlayers.filter((id: string) => id !== playerId);
+        const res = await api.patch(`/teams/${selectedTeam._id || selectedTeam.id}`, { players: updatedPlayers });
+        setTeams(teams.map(t => (t._id || t.id) === res.data.data.team._id ? res.data.data.team : t));
+        setSelectedTeam(res.data.data.team);
+        toast.success("Player removed from roster.");
+      } catch {
+        toast.error("Failed to remove player.");
       }
+    }
   };
 
   const getStudentName = (id: string) => {
-      const s = MOCK_STUDENTS.find(student => student.id === id);
-      return s ? s.name : 'Unknown Student';
+    const s = allStudents.find(student => student._id === id || student.id === id);
+    return s ? s.name : 'Unknown Student';
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Teams</h1>
-          <p className="text-slate-500">Manage your sports teams, coaches, and rosters.</p>
+          <p className="text-slate-500">Manage your sports teams and rosters.</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => exportToExcel(teams, 'Teams')}>Export Excel</Button>
           <Button className="flex items-center" onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Create Team
           </Button>
@@ -98,7 +152,7 @@ export const TeamManagement = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {teams.map((team) => (
-          <Card key={team.id} className="relative group hover:shadow-lg transition-shadow border border-slate-200">
+          <Card key={team._id || team.id} className="relative group hover:shadow-lg transition-shadow border border-slate-200">
             <div className="absolute top-4 right-4">
                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded uppercase border border-slate-200">
                  {team.season}
@@ -112,25 +166,22 @@ export const TeamManagement = () => {
               <div>
                 <h3 className="font-bold text-slate-900 text-lg leading-tight">{team.name}</h3>
                 <p className="text-sm text-slate-500 mt-1 font-medium">{team.sport}</p>
-                <div className="flex items-center text-xs text-slate-500 mt-1">
-                     <User className="h-3 w-3 mr-1" /> Coach: {team.coach}
-                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2 py-4 border-t border-b border-slate-100 my-4 text-center">
               <div>
                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Played</p>
-                 <p className="font-bold text-slate-900 text-lg">{team.stats.played}</p>
+                 <p className="font-bold text-slate-900 text-lg">{team.stats?.played || 0}</p>
               </div>
               <div>
                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Won</p>
-                 <p className="font-bold text-green-600 text-lg">{team.stats.won}</p>
+                 <p className="font-bold text-green-600 text-lg">{team.stats?.won || 0}</p>
               </div>
               <div>
                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Win Rate</p>
                  <p className="font-bold text-blue-600 text-lg">
-                   {team.stats.played > 0 ? Math.round((team.stats.won / team.stats.played) * 100) : 0}%
+                   {(team.stats?.played || 0) > 0 ? Math.round((team.stats.won / team.stats.played) * 100) : 0}%
                  </p>
               </div>
             </div>
@@ -139,20 +190,20 @@ export const TeamManagement = () => {
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center text-slate-600 font-medium">
                   <Users className="h-4 w-4 mr-2" />
-                  <span>{getPlayerCount(team.playerIds)} Players</span>
+                  <span>{getPlayerCount(team.players)} Players</span>
                 </div>
                 <div className="flex -space-x-2">
-                  {team.playerIds.slice(0, 3).map((pid, idx) => (
+                  {(team.players || []).slice(0, 3).map((player: any, idx: number) => (
                     <img 
                       key={idx} 
                       className="h-7 w-7 rounded-full border-2 border-white bg-slate-200" 
-                      src={`https://picsum.photos/seed/${pid}/50`} 
+                      src={`https://picsum.photos/seed/${player._id || player}/50`} 
                       alt="" 
                     />
                   ))}
-                  {team.playerIds.length > 3 && (
+                  {(team.players || []).length > 3 && (
                     <div className="h-7 w-7 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
-                      +{team.playerIds.length - 3}
+                      +{(team.players?.length || 0) - 3}
                     </div>
                   )}
                 </div>
@@ -212,9 +263,7 @@ export const TeamManagement = () => {
                         onChange={(e) => setNewTeam({...newTeam, sport: e.target.value})}
                     >
                         <option value="Cricket">Cricket</option>
-                        <option value="Basketball">Basketball</option>
                         <option value="Badminton">Badminton</option>
-                        <option value="Football">Football</option>
                     </select>
                 </div>
                 <div>
@@ -229,23 +278,9 @@ export const TeamManagement = () => {
                 </div>
             </div>
 
-            <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Assign Coach</label>
-                <input 
-                    type="text" 
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors text-slate-900"
-                    placeholder="Enter Coach Name"
-                    value={newTeam.coach}
-                    onChange={(e) => setNewTeam({...newTeam, coach: e.target.value})}
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                    Enter the full name of the school staff member managing this team.
-                </p>
-            </div>
-
             <div className="flex justify-end pt-4 border-t border-slate-100 gap-2">
                 <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateTeam} disabled={!newTeam.name || !newTeam.coach}>Create Team</Button>
+                <Button onClick={handleCreateTeam} disabled={!newTeam.name}>Create Team</Button>
             </div>
         </div>
       </Modal>
@@ -281,14 +316,16 @@ export const TeamManagement = () => {
                     <h4 className="font-bold text-slate-900 mb-3 flex items-center justify-between">
                         Current Roster 
                         <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                            {selectedTeam.playerIds.length} Players
+                            {selectedTeam.players?.length || 0} Players
                         </span>
                     </h4>
                     <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-slate-50">
-                        {selectedTeam.playerIds.length === 0 ? (
+                        {!selectedTeam.players || selectedTeam.players.length === 0 ? (
                             <div className="p-8 text-center text-sm text-slate-500 italic">No players assigned yet. Add players from above.</div>
                         ) : (
-                            selectedTeam.playerIds.map(pid => (
+                            selectedTeam.players.map((p: any) => {
+                                const pid = p._id || p;
+                                return (
                                 <div key={pid} className="flex justify-between items-center p-3 hover:bg-white transition-colors">
                                     <div className="flex items-center space-x-3">
                                         <div className="h-8 w-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-xs font-bold text-slate-700 shadow-sm">
@@ -303,7 +340,8 @@ export const TeamManagement = () => {
                                         <Trash2 className="h-4 w-4" />
                                     </button>
                                 </div>
-                            ))
+                                )
+                            })
                         )}
                     </div>
                 </div>
@@ -313,7 +351,7 @@ export const TeamManagement = () => {
                 </div>
             </div>
         )}
-      </Modal>
-    </DashboardLayout>
+      </Modal></>
+    
   );
 };

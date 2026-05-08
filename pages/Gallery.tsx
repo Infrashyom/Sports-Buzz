@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { Image as ImageIcon } from 'lucide-react';
 import api from '../services/api';
-import { MOCK_GALLERY } from '../services/mockData';
 
 interface GalleryItem {
   _id: string;
@@ -19,14 +18,9 @@ export const Gallery = () => {
     const fetchGallery = async () => {
       try {
         const res = await api.get('/gallery');
-        if (res.data.data.items.length === 0) {
-          setGalleryItems(MOCK_GALLERY);
-        } else {
-          setGalleryItems(res.data.data.items);
-        }
-      } catch (error) {
-        console.error('Failed to fetch gallery', error);
-        setGalleryItems(MOCK_GALLERY);
+        setGalleryItems(res.data.data.items);
+      } catch {
+        setGalleryItems([]);
       } finally {
         setLoading(false);
       }
@@ -34,7 +28,7 @@ export const Gallery = () => {
     fetchGallery();
   }, []);
 
-  return (
+  return (<>
     <PublicLayout>
       <section className="pt-32 pb-20 bg-[#0A0F1C] min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -81,6 +75,6 @@ export const Gallery = () => {
           )}
         </div>
       </section>
-    </PublicLayout>
+    </PublicLayout></>
   );
 };

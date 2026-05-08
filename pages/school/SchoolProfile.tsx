@@ -1,24 +1,38 @@
-import React, { useState, useRef } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect, useRef } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { MOCK_SCHOOLS } from '../../services/mockData';
 import { MapPin, Phone, Mail, Edit2, Plus, Dumbbell, Waves, Warehouse, Upload } from 'lucide-react';
 import { Facility } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
 
 export const SchoolProfile = () => {
-  // Simulating fetching the logged-in school's data
-  const [schoolData, setSchoolData] = useState(MOCK_SCHOOLS[0]); 
-  const [facilities, setFacilities] = useState<Facility[]>(schoolData.facilities || []);
+  const { user, updateProfile } = useAuth();
+  const [schoolData, setSchoolData] = useState<any>(null); 
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   
+  useEffect(() => {
+    if (user?.schoolId) {
+      api.get(`/schools/${user.schoolId}`).then(res => {
+        setSchoolData(res.data.data.school);
+        setFacilities(res.data.data.school.facilities || []);
+      }).catch(err => {
+        console.error("Failed to load school", err);
+      });
+    }
+  }, [user]);
   // Edit Profile Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
-      phone: schoolData.phone || '',
-      description: schoolData.description || '',
-      // Logo is handled separately via file upload simulation
+      phone: '',
+      description: '',
+      address: '',
+      logo: ''
   });
+  const [phoneError, setPhoneError] = useState('');
   
   // File Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,13 +64,15 @@ export const SchoolProfile = () => {
     }
   };
 
-  // Edit Profile Handlers
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file.name);
-      const url = URL.createObjectURL(file);
-      setSchoolData(prev => ({ ...prev, logo: url }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({ ...prev, logo: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -64,50 +80,94 @@ export const SchoolProfile = () => {
     fileInputRef.current?.click();
   };
 
-  const handleSaveChanges = () => {
-      setSchoolData({
-          ...schoolData,
-          phone: editForm.phone,
-          description: editForm.description,
-      });
-      setIsEditModalOpen(false);
-      setSelectedFile(null);
+  const validatePhone = (phone: string) => {
+    // Basic validation: 10-15 digits, optional + at start, optional spaces/-
+    const regex = /^\+?[\d\s-]{10,15}$/;
+    if (!phone) return true; // Optionally empty
+    return regex.test(phone.replace(/[\s-]/g, ''));
+  };
+
+  const handleSaveChanges = async () => {
+      if (editForm.phone && !validatePhone(editForm.phone)) {
+        setPhoneError('Please enter a valid phone number (e.g. +1234567890)');
+        return;
+      }
+      setPhoneError('');
+      
+      try {
+        const payload: any = {
+           phone: editForm.phone,
+           description: editForm.description,
+           address: editForm.address,
+        };
+        if (editForm.logo && editForm.logo.startsWith('data:image')) {
+            payload.logo = editForm.logo;
+            // Update the auth user's avatar too
+            updateProfile({ avatar: editForm.logo });
+        }
+        
+        const res = await api.patch(`/schools/${schoolData._id}`, payload);
+        setSchoolData(res.data.data.school);
+        toast.success("School profile updated successfully");
+        setIsEditModalOpen(false);
+        setSelectedFile(null);
+      } catch {
+        toast.error("Failed to update profile");
+      }
   };
 
   // Add Facility Handlers
-  const handleAddFacility = () => {
+  const handleAddFacility = async () => {
       if (newFacility.name) {
-          const facility: Facility = {
-              id: `fac-${Date.now()}`,
-              name: newFacility.name,
-              type: newFacility.type as Facility['type'],
-              status: newFacility.status as Facility['status']
-          };
-          setFacilities([...facilities, facility]);
-          setIsFacilityModalOpen(false);
-          setNewFacility({ name: '', type: 'Indoor', status: 'Available' }); // Reset
+          try {
+              const res = await api.post(`/schools/${schoolData._id}/facilities`, newFacility);
+              setFacilities(res.data.data.school.facilities);
+              toast.success("Facility added");
+              setIsFacilityModalOpen(false);
+              setNewFacility({ name: '', type: 'Indoor', status: 'Available' });
+          } catch {
+              toast.error("Failed to add facility");
+          }
       }
+  };
+
+  const handleUpdateFacilityStatus = async (facilityId: string, status: string) => {
+    try {
+      const res = await api.patch(`/schools/${schoolData._id}/facilities/${facilityId}`, { status });
+      setFacilities(res.data.data.school.facilities);
+      toast.success("Facility status updated");
+    } catch {
+      toast.error("Failed to update facility status");
+    }
   };
 
   const openEditModal = () => {
       setEditForm({
           phone: schoolData.phone || '',
-          description: schoolData.description || ''
+          description: schoolData.description || '',
+          address: schoolData.address || '',
+          logo: schoolData.logo || ''
       });
       setSelectedFile(null);
       setIsEditModalOpen(true);
   };
 
-  return (
-    <DashboardLayout>
+  if (!schoolData) {
+    return <div className="p-8 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>;
+  }
+
+  return (<>
+    
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">School Profile</h1>
           <p className="text-slate-500">Manage your institution's details and facilities.</p>
         </div>
-        <Button onClick={openEditModal} className="flex items-center">
-          <Edit2 className="h-4 w-4 mr-2" /> Edit Profile
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={openEditModal} className="flex items-center">
+            <Edit2 className="h-4 w-4 mr-2" /> Edit Profile
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -116,7 +176,7 @@ export const SchoolProfile = () => {
           <Card className="text-center">
             <div className="relative inline-block">
               <img 
-                src={schoolData.logo} 
+                src={schoolData.logo || "https://ui-avatars.com/api/?name=" + schoolData.name} 
                 alt={schoolData.name} 
                 className="h-32 w-32 rounded-full object-cover border-4 border-slate-100 mx-auto"
               />
@@ -188,9 +248,15 @@ export const SchoolProfile = () => {
                         <p className="text-xs text-slate-500">{facility.type}</p>
                       </div>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(facility.status)}`}>
-                      {facility.status}
-                    </span>
+                    <select
+                      className={`px-2 py-1 rounded-full text-xs font-medium cursor-pointer border-none outline-none appearance-none hover:opacity-80 transition-opacity ${getStatusColor(facility.status)}`}
+                      value={facility.status}
+                      onChange={(e) => handleUpdateFacilityStatus((facility as any)._id || facility.id, e.target.value)}
+                    >
+                      <option value="Available" className="bg-white text-slate-900">Available</option>
+                      <option value="Maintenance" className="bg-white text-slate-900">Maintenance</option>
+                      <option value="Booked" className="bg-white text-slate-900">Booked</option>
+                    </select>
                   </div>
                 </div>
               ))}
@@ -254,8 +320,11 @@ export const SchoolProfile = () => {
                       className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 hover:bg-slate-50 transition-all cursor-pointer bg-white"
                   >
                       <Upload className={`h-8 w-8 mx-auto mb-2 ${selectedFile ? 'text-blue-500' : 'text-slate-400'}`} />
-                      {selectedFile ? (
-                          <p className="text-sm font-medium text-blue-600 break-all">{selectedFile}</p>
+                      {editForm.logo && editForm.logo.startsWith('data:image') ? (
+                          <div className="flex flex-col items-center">
+                            <img src={editForm.logo} alt="Preview" className="h-16 w-16 rounded-full object-cover mb-2" />
+                            <p className="text-sm font-medium text-blue-600">New logo selected</p>
+                          </div>
                       ) : (
                            <>
                               <p className="text-sm font-medium text-slate-700">Click to upload new logo</p>
@@ -270,7 +339,21 @@ export const SchoolProfile = () => {
                   <input 
                       type="text" 
                       value={editForm.phone}
-                      onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                      onChange={(e) => {
+                        setEditForm({...editForm, phone: e.target.value});
+                        if (phoneError) setPhoneError('');
+                      }}
+                      className={`w-full px-4 py-2 border rounded-lg bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors ${phoneError ? 'border-red-500' : 'border-slate-300'}`}
+                  />
+                  {phoneError && <p className="mt-1 text-xs text-red-500">{phoneError}</p>}
+              </div>
+
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Address</label>
+                  <input 
+                      type="text" 
+                      value={editForm.address}
+                      onChange={(e) => setEditForm({...editForm, address: e.target.value})}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
                   />
               </div>
@@ -344,7 +427,7 @@ export const SchoolProfile = () => {
                   <Button onClick={handleAddFacility} disabled={!newFacility.name}>Add Facility</Button>
               </div>
           </div>
-      </Modal>
-    </DashboardLayout>
+      </Modal></>
+    
   );
 };

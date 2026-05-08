@@ -5,7 +5,6 @@ import { Calendar, MapPin, Trophy, Users, Search, Info, ArrowUpRight, Zap } from
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Tournament } from '../types';
-import { MOCK_TOURNAMENTS } from '../services/mockData';
 import api from '../services/api';
 
 export const PublicTournaments = () => {
@@ -24,18 +23,19 @@ export const PublicTournaments = () => {
     try {
       const response = await api.get('/tournaments');
       if (response.data.data.tournaments.length === 0) {
-        setTournaments(MOCK_TOURNAMENTS);
+        setTournaments([]);
       } else {
         setTournaments(response.data.data.tournaments);
       }
     } catch {
-      setTournaments(MOCK_TOURNAMENTS);
+      setTournaments([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const filteredTournaments = tournaments.filter(t => {
+    if (!t.isPublished) return false;
     const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           t.sport.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
@@ -46,7 +46,7 @@ export const PublicTournaments = () => {
     navigate('/login');
   };
 
-  return (
+  return (<>
     <PublicLayout>
       {/* Header Section */}
       <section className="pt-32 pb-12 bg-[#0A0F1C] px-4 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -152,7 +152,7 @@ export const PublicTournaments = () => {
                       </div>
                       <div className="bg-[#0A0F1C] p-3 rounded-xl border border-white/5">
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Teams</p>
-                        <p className="text-sm font-semibold text-white">{tournament.teams || 0} Registered</p>
+                        <p className="text-sm font-semibold text-white">{tournament.registeredTeams?.length || 0} Registered</p>
                       </div>
                     </div>
 
@@ -245,7 +245,7 @@ export const PublicTournaments = () => {
                   <Users className="h-4 w-4 mr-2" />
                   <span className="text-sm font-medium">Teams</span>
                 </div>
-                <p className="text-slate-900 font-semibold">{selectedTournament.teams || 0} Registered</p>
+                <p className="text-slate-900 font-semibold">{selectedTournament.registeredTeams?.length || 0} Registered</p>
               </div>
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                 <div className="flex items-center text-slate-500 mb-1">
@@ -279,6 +279,6 @@ export const PublicTournaments = () => {
           </div>
         )}
       </Modal>
-    </PublicLayout>
+    </PublicLayout></>
   );
 };

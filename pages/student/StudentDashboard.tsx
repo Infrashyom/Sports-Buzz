@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../context/AuthContext';
-import { MOCK_STUDENTS } from '../../services/mockData';
-import { Trophy, TrendingUp, Activity, Medal, Star, Zap } from 'lucide-react';
+import { TrendingUp, Activity, Star, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 import {
   LineChart,
   Line,
@@ -27,80 +27,216 @@ interface GroupedReward {
   tournaments: { name: string; date: string; sport: string }[];
 }
 
-// Mock performance data generator
-const getPerformanceData = (sport: string) => {
-  if (sport === 'Cricket') {
-    return [
-      { match: 'M1', runs: 45, wickets: 0 },
-      { match: 'M2', runs: 12, wickets: 1 },
-      { match: 'M3', runs: 78, wickets: 0 },
-      { match: 'M4', runs: 32, wickets: 2 },
-      { match: 'M5', runs: 55, wickets: 0 },
-    ];
-  } else if (sport === 'Basketball') {
-    return [
-      { match: 'M1', points: 12, assists: 4 },
-      { match: 'M2', points: 18, assists: 6 },
-      { match: 'M3', points: 8, assists: 2 },
-      { match: 'M4', points: 24, assists: 5 },
-      { match: 'M5', points: 15, assists: 7 },
-    ];
-  } else if (sport === 'Badminton') {
-    return [
-      { match: 'M1', points: 21, sets: 2 },
-      { match: 'M2', points: 19, sets: 1 },
-      { match: 'M3', points: 21, sets: 2 },
-      { match: 'M4', points: 15, sets: 0 },
-      { match: 'M5', points: 21, sets: 2 },
-    ];
-  } else {
-    // Default fallback
-    return [
-      { match: 'M1', score: 10 },
-      { match: 'M2', score: 15 },
-      { match: 'M3', score: 12 },
-      { match: 'M4', score: 20 },
-      { match: 'M5', score: 18 },
-    ];
-  }
-};
-
-const MOCK_LEADERBOARD = [
-  { rank: 1, name: 'Alex Johnson', points: 450, avatar: 'https://picsum.photos/seed/alex/100' },
-  { rank: 2, name: 'Jordan Mike', points: 412, avatar: 'https://picsum.photos/seed/st1/100' }, // Current User
-  { rank: 3, name: 'Sam Smith', points: 389, avatar: 'https://picsum.photos/seed/sam/100' },
-  { rank: 4, name: 'Casey Neistat', points: 350, avatar: 'https://picsum.photos/seed/casey/100' },
-  { rank: 5, name: 'Drew Berry', points: 310, avatar: 'https://picsum.photos/seed/drew/100' },
-  { rank: 6, name: 'Morgan Lee', points: 290, avatar: 'https://picsum.photos/seed/morgan/100' },
-  { rank: 7, name: 'Jamie Fox', points: 275, avatar: 'https://picsum.photos/seed/jamie/100' },
-  { rank: 8, name: 'Taylor Swift', points: 260, avatar: 'https://picsum.photos/seed/taylor/100' },
-];
-
-const MOCK_REWARDS = [
-  { id: 1, title: 'Man of the Match', date: 'Oct 15, 2023', icon: Star, color: 'text-yellow-500', bg: 'bg-yellow-100', sport: 'Cricket', tournamentName: 'Inter-School Cricket Championship 2023' },
-  { id: 2, title: 'Best Bowler', date: 'Sep 22, 2023', icon: Zap, color: 'text-blue-500', bg: 'bg-blue-100', sport: 'Cricket', tournamentName: 'Summer T20 Cup' },
-  { id: 3, title: 'Hat-trick Hero', date: 'Aug 10, 2023', icon: Medal, color: 'text-purple-500', bg: 'bg-purple-100', sport: 'Soccer', tournamentName: 'Regional Football League' },
-  { id: 4, title: 'MVP Finals', date: 'July 05, 2023', icon: Trophy, color: 'text-orange-500', bg: 'bg-orange-100', sport: 'Basketball', tournamentName: 'State Basketball Finals' },
-  { id: 5, title: 'Fair Play', date: 'June 12, 2023', icon: Trophy, color: 'text-green-500', bg: 'bg-green-100', sport: 'Badminton', tournamentName: 'District Badminton Open' },
-];
-
 export const StudentDashboard = () => {
   const { user } = useAuth();
-  const student = MOCK_STUDENTS.find(s => s.id === user?.id) || MOCK_STUDENTS[0];
-  const [selectedSport, setSelectedSport] = useState(student.sports[0]);
-  const [isAvailable, setIsAvailable] = useState(student.status === 'Active');
+  
+  const [student, setStudent] = useState<any>(null);
+  const [selectedSport, setSelectedSport] = useState('Cricket');
+  const [isAvailable, setIsAvailable] = useState(true);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [selectedReward, setSelectedReward] = useState<GroupedReward | null>(null);
   const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
 
-  const performanceData = getPerformanceData(selectedSport);
+  const [matches, setMatches] = useState<any[]>([]);
+  const [myTeamNames, setMyTeamNames] = useState<string[]>([]);
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
 
-  const toggleAvailability = () => {
-    setIsAvailable(!isAvailable);
-    toast.success(`Status updated to ${!isAvailable ? 'Active' : 'Away'}`);
+  const [activeSports, setActiveSports] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchStudentData = async () => {
+        try {
+            if (!user) return;
+            
+            let allStudentsData: any[] = [];
+            let allTeamsData: any[] = [];
+            let allMatchesData: any[] = [];
+
+            try {
+                const studentRes = await api.get('/students');
+                allStudentsData = studentRes.data?.data?.students || [];
+            } catch (err) { console.error('Failed to fetch students', err); }
+
+            try {
+                const teamRes = await api.get('/teams');
+                allTeamsData = teamRes.data?.data?.teams || [];
+            } catch (err) { console.error('Failed to fetch teams', err); }
+
+            try {
+                const matchRes = await api.get('/matches');
+                allMatchesData = matchRes.data?.data?.matches || [];
+            } catch (err) { console.error('Failed to fetch matches', err); }
+            
+            setAllStudents(allStudentsData);
+            
+            let myStudent = allStudentsData.find((s: any) => s.studentId === user.email || s.id === user.id || s._id === user.id);
+            if (!myStudent) {
+                myStudent = {
+                    _id: user.id,
+                    id: user.id,
+                    name: user.name || 'Student',
+                    studentId: user.email,
+                    status: 'Active',
+                    schoolId: user.schoolId,
+                    sports: [] 
+                };
+            }
+            setStudent(myStudent);
+            setIsAvailable(myStudent.status === 'Active');
+            
+            setAllTeams(allTeamsData);
+            const myTeams = allTeamsData.filter((t: any) => {
+                if (!myStudent) return false;
+                if (!t.players) return false;
+                const studentId = myStudent._id || myStudent.id;
+                return t.players.some((p: any) => p._id === studentId || p.id === studentId || p === studentId);
+            });
+            const myTeamNamesList = myTeams.map((t: any) => t.name);
+            setMyTeamNames(myTeamNamesList);
+            
+            const transformedMatches = allMatchesData.map((m: any) => ({
+                ...m,
+                id: m._id,
+                teamA: typeof m.teamA === 'string' ? m.teamA : m.teamA?.name,
+                teamB: typeof m.teamB === 'string' ? m.teamB : m.teamB?.name
+            }));
+            setMatches(transformedMatches);
+
+            // Compute sports
+            const playedSports = new Set<string>();
+            myStudent.sports?.forEach((s: string) => playedSports.add(s));
+            myTeams.forEach((t: any) => {
+                if (t.sport) playedSports.add(t.sport);
+            });
+            transformedMatches.forEach((m: any) => {
+                const isMyTeamA = myTeamNamesList.includes(m.teamA);
+                const isMyTeamB = myTeamNamesList.includes(m.teamB);
+                if (isMyTeamA || isMyTeamB) {
+                    if (m.sport) playedSports.add(m.sport);
+                }
+            });
+
+            const uniqueSportsArray = Array.from(playedSports);
+            setActiveSports(uniqueSportsArray);
+            if (uniqueSportsArray.length > 0) {
+                setSelectedSport(uniqueSportsArray[0]);
+            }
+            
+        } catch (err) { console.error(err); }
+    };
+    fetchStudentData();
+  }, [user]);
+
+  const toggleAvailability = async () => {
+    try {
+        const newStatus = isAvailable ? 'Inactive' : 'Active';
+        if (student && (student._id || student.id)) {
+            const studentId = student._id || student.id;
+            await api.patch(`/students/${studentId}/status`, { status: newStatus });
+        }
+        setIsAvailable(!isAvailable);
+        toast.success(`Status updated to ${!isAvailable ? 'Active' : 'Away'}`);
+    } catch (err) {
+        toast.error('Failed to update status');
+        console.error(err);
+    }
   };
 
-  const groupedRewards = MOCK_REWARDS.reduce((acc, reward) => {
+  // Process authentic match data
+  const mySportMatches = matches.filter(m => 
+    m.sport === selectedSport &&
+    myTeamNames.some(teamName => m.teamA === teamName || m.teamB === teamName)
+  );
+
+  const completedMatches = mySportMatches.filter(m => m.status === 'VERIFIED' || m.status === 'COMPLETED');
+  
+  let totalWins = 0;
+  const performanceData = completedMatches.map((m, idx) => {
+      const isMyTeamA = myTeamNames.includes(m.teamA);
+      const myScore = isMyTeamA ? m.scoreA : m.scoreB;
+      const oppScore = isMyTeamA ? m.scoreB : m.scoreA;
+      const isWin = (myScore || 0) > (oppScore || 0);
+      if (isWin) totalWins++;
+      
+      const statValue = myScore || 0; // runs/points
+      
+      return {
+          match: `M${idx + 1}`,
+          points: statValue,
+          runs: statValue, // we map both so recharts finds one
+          isWin
+      };
+  });
+  
+  const winRate = completedMatches.length > 0 ? Math.round((totalWins / completedMatches.length) * 100) : 0;
+  
+  // Calculate MVP
+  const mvpCount = completedMatches.filter(m => m.manOfTheMatchId === user?.id || m.manOfTheMatchId === student?._id).length;
+
+  const authenticLeaderboard = allStudents.map(s => {
+      let pts = 0;
+      const sId = s.id || s._id;
+      const sTeams = allTeams.filter(t => t.players && t.players.some((p: any) => p._id === sId || p.id === sId || p === sId)).map(t => t.name);
+      const sMatches = matches.filter(m => m.status === 'VERIFIED' || m.status === 'COMPLETED');
+      sMatches.forEach(m => {
+          const isSA = sTeams.includes(m.teamA) || String(m.teamA).includes(s.schoolId?.name || '');
+          const isSB = sTeams.includes(m.teamB) || String(m.teamB).includes(s.schoolId?.name || '');
+          if (isSA || isSB) {
+              pts += 10; // participation
+              const isWin = isSA ? (m.scoreA || 0) > (m.scoreB || 0) : (m.scoreB || 0) > (m.scoreA || 0);
+              if (isWin) pts += 20;
+          }
+          if (m.manOfTheMatchId === sId) {
+              pts += 50;
+          }
+      });
+      return { 
+          rank: 0, 
+          name: s.name, 
+          points: pts, 
+          avatar: s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random` 
+      };
+  }).sort((a,b) => b.points - a.points).map((item, idx) => ({ ...item, rank: idx + 1 }));
+
+  const authenticRewards: any[] = [];
+  let rewardId = 1;
+  completedMatches.forEach(m => {
+      const isMyTeamA = myTeamNames.includes(m.teamA);
+      const isMyTeamB = myTeamNames.includes(m.teamB);
+      
+      if (m.manOfTheMatchId === (user?.id || student?._id)) {
+          authenticRewards.push({
+              id: rewardId++,
+              title: 'Man of the Match',
+              date: new Date(m.date).toLocaleDateString(),
+              icon: Star,
+              color: 'text-yellow-500',
+              bg: 'bg-yellow-100',
+              sport: m.sport,
+              tournamentName: m.tournamentId?.name || 'Tournament Match'
+          });
+      }
+      if (isMyTeamA || isMyTeamB) {
+          const myScore = isMyTeamA ? m.scoreA : m.scoreB;
+          const oppScore = isMyTeamA ? m.scoreB : m.scoreA;
+          const isWin = (myScore || 0) > (oppScore || 0);
+          if (isWin && (myScore || 0) - (oppScore || 0) > 10) {
+              authenticRewards.push({
+                  id: rewardId++,
+                  title: 'Dominant Victory',
+                  date: new Date(m.date).toLocaleDateString(),
+                  icon: Zap,
+                  color: 'text-blue-500',
+                  bg: 'bg-blue-100',
+                  sport: m.sport,
+                  tournamentName: m.tournamentId?.name || 'Tournament Match'
+              });
+          }
+      }
+  });
+
+  const groupedRewards = authenticRewards.reduce((acc, reward) => {
     if (!acc[reward.title]) {
       acc[reward.title] = { 
         ...reward, 
@@ -114,10 +250,14 @@ export const StudentDashboard = () => {
     return acc;
   }, {} as Record<string, GroupedReward>);
   
-  const uniqueRewards = Object.values(groupedRewards);
+  const uniqueRewards: GroupedReward[] = Object.values(groupedRewards);
 
-  return (
-    <DashboardLayout>
+  if (!student) {
+    return <div className="text-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div></div>;
+  }
+
+  return (<>
+    
       {/* Header Section: Compact on Mobile */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center space-x-3 md:space-x-4">
@@ -156,7 +296,7 @@ export const StudentDashboard = () => {
         {/* Scalable Sports Selector */}
         <div className="w-full overflow-hidden">
             <div className="flex overflow-x-auto pb-2 gap-2 hide-scrollbar">
-                {student.sports.map(sport => (
+                {activeSports.map((sport: string) => (
                 <button
                     key={sport}
                     onClick={() => setSelectedSport(sport)}
@@ -178,7 +318,7 @@ export const StudentDashboard = () => {
         <Card className="p-3 md:p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none flex flex-col justify-between h-full">
           <p className="text-blue-100 text-[10px] md:text-xs font-medium uppercase tracking-wider truncate">Matches</p>
           <div className="flex justify-between items-end mt-1">
-            <h3 className="text-xl md:text-3xl font-bold">12</h3>
+            <h3 className="text-xl md:text-3xl font-bold">{completedMatches.length}</h3>
             <Activity className="h-4 w-4 md:h-6 md:w-6 text-blue-200" />
           </div>
         </Card>
@@ -186,7 +326,7 @@ export const StudentDashboard = () => {
         <Card className="p-3 md:p-4 flex flex-col justify-between h-full">
           <p className="text-slate-500 text-[10px] md:text-xs font-medium uppercase tracking-wider truncate">Win Rate</p>
           <div className="flex justify-between items-end mt-1">
-            <h3 className="text-xl md:text-3xl font-bold text-slate-900">75%</h3>
+            <h3 className="text-xl md:text-3xl font-bold text-slate-900">{winRate}%</h3>
             <TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-green-500" />
           </div>
         </Card>
@@ -194,7 +334,7 @@ export const StudentDashboard = () => {
         <Card className="p-3 md:p-4 flex flex-col justify-between h-full">
           <p className="text-slate-500 text-[10px] md:text-xs font-medium uppercase tracking-wider truncate">MVP</p>
           <div className="flex justify-between items-end mt-1">
-            <h3 className="text-xl md:text-3xl font-bold text-slate-900">3</h3>
+            <h3 className="text-xl md:text-3xl font-bold text-slate-900">{mvpCount}</h3>
             <Star className="h-4 w-4 md:h-6 md:w-6 text-purple-500" />
           </div>
         </Card>
@@ -227,7 +367,7 @@ export const StudentDashboard = () => {
                   />
                   <Line 
                     type="monotone" 
-                    dataKey={selectedSport === 'Cricket' ? 'runs' : selectedSport === 'Basketball' ? 'points' : 'points'} 
+                    dataKey={selectedSport === 'Cricket' ? 'runs' : selectedSport === 'Badminton' ? 'points' : 'points'} 
                     stroke="#2563eb" 
                     strokeWidth={3} 
                     dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }} 
@@ -236,7 +376,7 @@ export const StudentDashboard = () => {
                   {selectedSport === 'Cricket' && (
                     <Line type="monotone" dataKey="wickets" stroke="#ef4444" strokeWidth={2} />
                   )}
-                  {selectedSport === 'Basketball' && (
+                  {selectedSport === 'Badminton' && (
                     <Line type="monotone" dataKey="assists" stroke="#10b981" strokeWidth={2} />
                   )}
                   {selectedSport === 'Badminton' && (
@@ -252,7 +392,7 @@ export const StudentDashboard = () => {
         <div className="lg:col-span-1">
           <Card title="Leaderboard" className="h-full">
             <div className="space-y-3">
-              {MOCK_LEADERBOARD.slice(0, 5).map((item) => (
+              {authenticLeaderboard.slice(0, 5).map((item) => (
                 <div key={item.rank} className={`flex items-center justify-between p-2 rounded-lg ${item.name === student.name ? 'bg-blue-50 border border-blue-100 ring-1 ring-blue-200' : ''}`}>
                   <div className="flex items-center space-x-3">
                     <div className={`w-6 text-center font-bold text-sm ${item.rank <= 3 ? 'text-yellow-600' : 'text-slate-400'}`}>
@@ -322,7 +462,7 @@ export const StudentDashboard = () => {
                 <span>Rank & Player</span>
                 <span>Points</span>
             </div>
-            {MOCK_LEADERBOARD.map((item) => (
+            {authenticLeaderboard.map((item) => (
                 <div key={item.rank} className={`flex items-center justify-between p-3 rounded-lg border border-transparent ${item.name === student.name ? 'bg-blue-50 border-blue-100 shadow-sm' : 'hover:bg-slate-50'}`}>
                   <div className="flex items-center space-x-3">
                     <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
@@ -381,7 +521,7 @@ export const StudentDashboard = () => {
             </div>
           </div>
         )}
-      </Modal>
-    </DashboardLayout>
+      </Modal></>
+    
   );
 };

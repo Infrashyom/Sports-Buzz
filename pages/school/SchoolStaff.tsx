@@ -1,37 +1,33 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-import { Plus, Award, Mail, Phone, Ban, Edit2, ShieldCheck, Briefcase, CheckCircle, FileText, Star } from 'lucide-react';
+import { Plus, Award, Mail, Phone, Ban, Edit2, ShieldCheck, CheckCircle, FileText, Star, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface StaffMember {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   email: string;
-  phone: string;
-  role: 'Coach' | 'Referee';
-  sport: string;
+  phone?: string;
+  mobile?: string;
+  role: string;
+  sport?: string;
   certification?: string;
-  status: 'Active' | 'Pending Approval' | 'Inactive' | 'Banned';
+  certifications?: Array<{ name: string; status: string }>;
+  status: string;
   password?: string;
   rating?: number;
 }
 
-const MOCK_STAFF: StaffMember[] = [
-  { id: '1', name: 'Coach Carter', email: 'carter@springfield.edu', phone: '555-0101', role: 'Coach', sport: 'Basketball', status: 'Active' },
-  { id: '2', name: 'John Whistle', email: 'john.w@gmail.com', phone: '555-0102', role: 'Referee', sport: 'Cricket', certification: 'Level 2 Umpire', status: 'Active', rating: 4 },
-  { id: '3', name: 'Sarah Line', email: 'sarah.l@gmail.com', phone: '555-0103', role: 'Referee', sport: 'Badminton', certification: 'BWF Basic', status: 'Pending Approval', rating: 5 },
-];
-
-import { exportToExcel } from '../../services/export';
-
 export const SchoolStaff = () => {
-  const [activeTab, setActiveTab] = useState<'Coach' | 'Referee'>('Coach');
-  const [staffList, setStaffList] = useState<StaffMember[]>(MOCK_STAFF);
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [sports, setSports] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCertModalOpen, setIsCertModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'ADD' | 'EDIT'>('ADD');
@@ -39,17 +35,36 @@ export const SchoolStaff = () => {
   const [banId, setBanId] = useState<string | null>(null);
   const [selectedStaffForBan, setSelectedStaffForBan] = useState<StaffMember | null>(null);
   const [selectedRefereeCerts, setSelectedRefereeCerts] = useState<StaffMember | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState<Partial<StaffMember>>({
-    name: '', email: '', phone: '', sport: 'Cricket', role: 'Coach', certification: '', password: ''
+    name: '', email: '', phone: '', sport: '', role: 'REFEREE', certification: '', password: ''
   });
 
-  const filteredStaff = staffList.filter(s => s.role === activeTab);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user?.schoolId) {
+      api.get(`/users?schoolId=${user.schoolId}`).then(res => {
+         setStaffList(res.data.data.users);
+      });
+    }
+    api.get('/sports').then(res => {
+      setSports(res.data.data.sports);
+      if (res.data.data.sports.length > 0) {
+        setFormData(prev => ({ ...prev, sport: prev.sport || res.data.data.sports[0].name }));
+      }
+    }).catch(console.error);
+  }, [user]);
+
+  const filteredStaff = staffList.filter(s => {
+      return s.role === 'REFEREE';
+  });
 
   const openAddModal = () => {
       setModalMode('ADD');
-      setFormData({ name: '', email: '', phone: '', sport: 'Cricket', role: activeTab, certification: '', password: '' });
+      setFormData({ name: '', email: '', phone: '', sport: sports.length > 0 ? sports[0].name : '', role: 'REFEREE', certification: '', password: '' });
       setIsModalOpen(true);
   };
 
@@ -67,114 +82,77 @@ export const SchoolStaff = () => {
 
     if (modalMode === 'ADD') {
         try {
-            await api.post('/auth/register', {
+            const addedStaff = await api.post('/users', {
                 name: formData.name,
                 email: formData.email,
                 password: formData.password,
-                role: activeTab === 'Coach' ? 'SCHOOL' : 'REFEREE', // Assuming Coach logs in as SCHOOL or we need a new role. For now, let's use REFEREE for referees.
-                mobile: formData.phone
+                role: 'REFEREE',
+                mobile: formData.phone,
+                sport: formData.sport,
+                certifications: formData.certification ? [{ name: formData.certification, status: 'Pending' }] : undefined,
+                status: 'Pending'
             });
-
-            const staff: StaffMember = {
-                id: Date.now().toString(),
-                name: formData.name || '',
-                email: formData.email || '',
-                phone: formData.phone || '',
-                role: activeTab,
-                sport: formData.sport || 'Cricket',
-                certification: activeTab === 'Referee' ? formData.certification : undefined,
-                status: activeTab === 'Referee' ? 'Pending Approval' : 'Active'
-            };
-            setStaffList([...staffList, staff]);
-            toast.success(`${activeTab} added successfully. Credentials sent to email.`);
+            setStaffList([...staffList, addedStaff.data.data.user]);
+            toast.success(`Referee added successfully.`);
             setIsModalOpen(false);
         } catch {
-            // Fallback for demo
-            const staff: StaffMember = {
-                id: Date.now().toString(),
-                name: formData.name || '',
-                email: formData.email || '',
-                phone: formData.phone || '',
-                role: activeTab,
-                sport: formData.sport || 'Cricket',
-                certification: activeTab === 'Referee' ? formData.certification : undefined,
-                status: activeTab === 'Referee' ? 'Pending Approval' : 'Active'
-            };
-            setStaffList([...staffList, staff]);
-            toast.success(`${activeTab} added locally (Demo mode).`);
-            setIsModalOpen(false);
+            toast.error("Failed to add staff");
         }
     } else {
-        setStaffList(staffList.map(s => s.id === formData.id ? { ...s, ...formData } as StaffMember : s));
-        toast.success(`${activeTab} details updated.`);
-        setIsModalOpen(false);
+        try {
+          const res = await api.patch(`/users/${formData._id || formData.id}`, formData);
+          setStaffList(staffList.map(s => s._id === formData._id ? res.data.data.user : s));
+          toast.success(`Referee details updated.`);
+          setIsModalOpen(false);
+        } catch {
+          toast.error("Failed to update staff");
+        }
     }
   };
 
-  const initiateBan = (staff: StaffMember) => {
+  const initiateBan = (staff: any) => {
     setSelectedStaffForBan(staff);
-    setBanId(staff.id);
+    setBanId(staff._id);
   };
 
-  const handleToggleBan = () => {
-    if (banId) {
-      setStaffList(staffList.map(s => {
-          if (s.id === banId) {
-              const newStatus = s.status === 'Banned' ? 'Active' : 'Banned';
-              toast.success(`Staff member status changed to ${newStatus}.`);
-              return { ...s, status: newStatus };
-          }
-          return s;
-      }));
-      setBanId(null);
-      setSelectedStaffForBan(null);
+  const handleToggleBan = async () => {
+    if (banId && selectedStaffForBan) {
+      try {
+        const newStatus = selectedStaffForBan.status === 'Banned' ? 'Active' : 'Banned';
+        await api.patch(`/users/${banId}/status`, { status: newStatus });
+        setStaffList(staffList.map(s => s._id === banId ? { ...s, status: newStatus } : s));
+        toast.success(`Staff member status changed to ${newStatus}.`);
+        setBanId(null);
+        setSelectedStaffForBan(null);
+      } catch {
+        toast.error('Failed to change status');
+      }
     }
   };
 
-  const viewCertifications = (staff: StaffMember) => {
+  const viewCertifications = (staff: any) => {
       setSelectedRefereeCerts(staff);
       setIsCertModalOpen(true);
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Staff Management</h1>
-          <p className="text-slate-500">Manage your Coaches and nominate Referees for official tournaments.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Manage Referees</h1>
+          <p className="text-slate-500">Nominate Referees for official tournaments.</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => exportToExcel(filteredStaff, 'Staff')}>Export Excel</Button>
           <Button onClick={openAddModal} className="flex items-center">
-            <Plus className="h-4 w-4 mr-2" /> Add {activeTab}
+            <Plus className="h-4 w-4 mr-2" /> Add Referee
           </Button>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white p-1 rounded-xl border border-slate-200 inline-flex mb-6 shadow-sm">
-        <button
-          onClick={() => setActiveTab('Coach')}
-          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeTab === 'Coach' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          Coaches
-        </button>
-        <button
-          onClick={() => setActiveTab('Referee')}
-          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeTab === 'Referee' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          Referees
-        </button>
       </div>
 
       {/* Staff Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredStaff.map((staff) => (
-          <Card key={staff.id} className="relative group hover:shadow-md transition-shadow">
+          <Card key={staff._id || staff.id} className="relative group hover:shadow-md transition-shadow">
             <div className="absolute top-4 right-4">
               <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
                 staff.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' :
@@ -187,10 +165,8 @@ export const SchoolStaff = () => {
             </div>
 
             <div className="flex items-start space-x-4 mb-4">
-              <div className={`h-12 w-12 rounded-full flex items-center justify-center text-xl font-bold ${
-                staff.role === 'Coach' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
-              }`}>
-                {staff.role === 'Coach' ? <Briefcase className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
+              <div className="h-12 w-12 rounded-full flex items-center justify-center text-xl font-bold bg-purple-100 text-purple-600">
+                <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-lg leading-tight">{staff.name}</h3>
@@ -205,19 +181,15 @@ export const SchoolStaff = () => {
                 <Mail className="h-4 w-4 mr-3 text-slate-400" /> {staff.email}
               </div>
               <div className="flex items-center text-slate-600">
-                <Phone className="h-4 w-4 mr-3 text-slate-400" /> {staff.phone}
+                <Phone className="h-4 w-4 mr-3 text-slate-400" /> {staff.mobile || staff.phone || 'N/A'}
               </div>
-              {staff.role === 'Referee' && (
-                <>
-                  <div className="flex items-center text-slate-600">
-                    <Star className="h-4 w-4 mr-3 text-yellow-500" /> 
-                    {staff.rating ? `${staff.rating}.0 / 5.0` : 'Not rated yet'}
-                  </div>
-                  <div className="flex items-center text-blue-600 cursor-pointer hover:underline" onClick={() => viewCertifications(staff)}>
-                    <FileText className="h-4 w-4 mr-3" /> View Certifications
-                  </div>
-                </>
-              )}
+              <div className="flex items-center text-slate-600">
+                <Star className="h-4 w-4 mr-3 text-yellow-500" /> 
+                {staff.rating ? `${staff.rating}.0 / 5.0` : 'Not rated yet'}
+              </div>
+              <div className="flex items-center text-blue-600 cursor-pointer hover:underline" onClick={() => viewCertifications(staff)}>
+                <FileText className="h-4 w-4 mr-3" /> View Certifications
+              </div>
             </div>
 
             <div className="mt-6 flex gap-2">
@@ -245,11 +217,9 @@ export const SchoolStaff = () => {
           <div className="h-12 w-12 rounded-full bg-slate-100 group-hover:bg-blue-200 flex items-center justify-center mb-4 transition-colors">
             <Plus className="h-6 w-6 text-slate-400 group-hover:text-blue-600" />
           </div>
-          <h3 className="font-bold text-slate-900">Add New {activeTab}</h3>
+          <h3 className="font-bold text-slate-900">Add New Referee</h3>
           <p className="text-sm text-slate-500 text-center mt-2 max-w-[200px]">
-            {activeTab === 'Referee' 
-              ? 'Nominate a qualified referee for upcoming tournaments.' 
-              : 'Add coaching staff to manage school teams.'}
+            Nominate a qualified referee for upcoming tournaments.
           </p>
         </button>
       </div>
@@ -258,17 +228,15 @@ export const SchoolStaff = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={modalMode === 'ADD' ? `Add New ${activeTab}` : `Edit ${activeTab} Details`}
+        title={modalMode === 'ADD' ? `Add New Referee` : `Edit Referee Details`}
       >
         <div className="space-y-4">
           <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800 border border-blue-100">
-             {activeTab === 'Referee' 
-               ? 'Referees added here will be reviewed by the Platform Admin before they can officiate official matches.'
-               : 'Coaches added here will be able to manage team rosters and view student details.'}
+             Referees added here will be reviewed by the Platform Admin before they can officiate official matches.
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Full Name <span className="text-red-500">*</span></label>
             <input 
               type="text"
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
@@ -280,7 +248,7 @@ export const SchoolStaff = () => {
 
           <div className="grid grid-cols-2 gap-4">
              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Email {modalMode === 'EDIT' && '(Read-Only)'}</label>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Email <span className="text-red-500">*</span> {modalMode === 'EDIT' && '(Read-Only)'}</label>
                 <input 
                   type="email"
                   className={`w-full px-4 py-2 border rounded-lg transition-colors ${modalMode === 'EDIT' ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-slate-50 text-slate-900 focus:bg-white border-slate-300 focus:ring-2 focus:ring-blue-500'}`}
@@ -310,29 +278,37 @@ export const SchoolStaff = () => {
                 value={formData.sport}
                 onChange={(e) => setFormData({...formData, sport: e.target.value})}
               >
-                <option value="Cricket">Cricket</option>
-                <option value="Basketball">Basketball</option>
-                <option value="Badminton">Badminton</option>
-                <option value="Football">Football</option>
+                {sports.map(s => (
+                  <option key={s._id || s.id} value={s.name}>{s.name}</option>
+                ))}
               </select>
             </div>
             {modalMode === 'ADD' && (
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Temporary Password <span className="text-red-500">*</span></label>
-                <input 
-                  type="password"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
-                  placeholder="Enter password"
-                  value={formData.password || ''}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                />
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
+                    placeholder="Enter password"
+                    value={formData.password || ''}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-blue-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
           <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-             <Button onClick={handleSubmit}>{modalMode === 'ADD' ? `Add ${activeTab}` : 'Save Changes'}</Button>
+             <Button onClick={handleSubmit}>{modalMode === 'ADD' ? `Add Referee` : 'Save Changes'}</Button>
           </div>
         </div>
       </Modal>
@@ -345,29 +321,49 @@ export const SchoolStaff = () => {
       >
         {selectedRefereeCerts && (
             <div className="space-y-4">
-                <div className="flex items-start space-x-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                    <div className="mt-1 p-2 bg-blue-100 rounded text-blue-600">
-                        <Award className="h-5 w-5" />
+                {(selectedRefereeCerts.certifications || []).length > 0 ? (
+                  (selectedRefereeCerts.certifications || []).map((cert: any, idx: number) => (
+                    <div key={idx} className="flex items-start space-x-3 p-4 bg-slate-50 rounded-lg border border-slate-100 flex-col md:flex-row gap-4 mb-2">
+                        <div className="mt-1 p-2 bg-blue-100 rounded text-blue-600 self-start hidden md:block">
+                            <Award className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-bold text-slate-900 text-sm">{cert.name}</h4>
+                            <p className="text-xs text-slate-500">Authority: {cert.authority || 'N/A'}</p>
+                            {cert.licenseId && cert.licenseId.startsWith('http') && (
+                                <a href={cert.licenseId} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline inline-flex items-center mt-1 font-medium bg-blue-50 px-2 py-1 rounded">
+                                    <FileText className="h-3 w-3 mr-1" /> View Document
+                                </a>
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-2 items-end">
+                          <span className={`text-xs font-bold ${cert.status === 'Verified' ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50'} px-2 py-1 rounded`}>
+                              {cert.status}
+                          </span>
+                          {cert.status === 'Pending' && (
+                              <Button size="sm" onClick={async () => {
+                                 const updatedCerts = [...(selectedRefereeCerts.certifications || [])];
+                                 updatedCerts[idx].status = 'Verified';
+                                 try {
+                                   await api.patch(`/users/${selectedRefereeCerts._id}`, { certifications: updatedCerts, status: 'Active' });
+                                   setSelectedRefereeCerts({...selectedRefereeCerts, certifications: updatedCerts, status: 'Active'});
+                                   setStaffList(staffList.map(s => s._id === selectedRefereeCerts._id ? {...s, certifications: updatedCerts, status: 'Active'} : s));
+                                   toast.success('Certification verified and referee activated');
+                                 } catch {
+                                   toast.error('Failed to verify');
+                                 }
+                              }}>Verify</Button>
+                          )}
+                        </div>
                     </div>
-                    <div className="flex-1">
-                        <h4 className="font-bold text-slate-900 text-sm">Primary Certification</h4>
-                        <p className="text-sm text-slate-700">{selectedRefereeCerts.certification || 'No active certification on file.'}</p>
-                    </div>
-                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Verified</span>
-                </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-sm text-slate-500 border border-dashed border-slate-200 rounded-xl">
+                      No certifications on file.
+                  </div>
+                )}
                 
-                {/* Mocking a history list for visual completeness */}
-                <div className="border-t border-slate-100 pt-4 mt-2">
-                    <h5 className="text-xs font-bold text-slate-400 uppercase mb-2">History</h5>
-                    <ul className="space-y-2 text-sm text-slate-600">
-                        <li className="flex justify-between">
-                            <span>Basic Umpire Course</span>
-                            <span className="text-slate-400">2021</span>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div className="flex justify-end pt-4">
+                <div className="flex justify-end pt-4 mt-2 border-t border-slate-100">
                     <Button onClick={() => setIsCertModalOpen(false)}>Close</Button>
                 </div>
             </div>
@@ -386,7 +382,7 @@ export const SchoolStaff = () => {
         }
         confirmLabel={selectedStaffForBan?.status === 'Banned' ? "Unban" : "Ban"}
         variant={selectedStaffForBan?.status === 'Banned' ? "primary" : "danger"}
-      />
-    </DashboardLayout>
+      /></>
+    
   );
 };

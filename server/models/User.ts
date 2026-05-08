@@ -13,6 +13,9 @@ const userSchema = new mongoose.Schema({
   experience: { type: String },
   certifications: [{ 
     name: { type: String },
+    authority: { type: String },
+    licenseId: { type: String },
+    validUntil: { type: Date },
     status: { type: String, enum: ['Pending', 'Verified'], default: 'Pending' }
   }],
   availability: { type: Boolean, default: true },

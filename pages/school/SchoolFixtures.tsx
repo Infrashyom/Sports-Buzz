@@ -1,30 +1,63 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { MOCK_MATCHES, MOCK_REFEREES, MOCK_POINTS_TABLE, MOCK_TOURNAMENTS } from '../../services/mockData';
 import { Calendar, CheckCircle, Clock, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Match } from '../../types';
+import { Match, Tournament } from '../../types';
 import { MatchDetailModal } from '../../components/fixtures/MatchDetailModal';
 import { StandingsTable } from '../../components/fixtures/StandingsTable';
-
-import { exportToExcel } from '../../services/export';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
 
 export const SchoolFixtures = () => {
-  const [selectedTournamentId, setSelectedTournamentId] = useState<string>('t1'); // Default to first tournament
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'FIXTURES' | 'STANDINGS'>('FIXTURES');
   const [matchTypeFilter, setMatchTypeFilter] = useState<'UPCOMING' | 'HISTORY'>('UPCOMING');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [allReferees, setAllReferees] = useState<any[]>([]);
+
+  useEffect(() => {
+     api.get('/tournaments').then(res => {
+         const publishedTournaments = res.data.data.tournaments.filter((t: any) => t.isPublished);
+         setTournaments(publishedTournaments);
+         if (publishedTournaments.length > 0) {
+             setSelectedTournamentId(publishedTournaments[0].id || publishedTournaments[0]._id);
+         }
+     }).catch(() => {
+         toast.error("Failed to load tournaments");
+     });
+
+     api.get('/matches').then(res => {
+         // Populate Team names properly if needed, it seems the backend populates teamA and teamB but they are IDs containing names
+         // If teamA is an object { _id, name }, extract name.
+         const formattedMatches = res.data.data.matches.map((m: any) => ({
+             ...m,
+             id: m._id,
+             teamA: m.teamA?.name || m.teamA,
+             teamB: m.teamB?.name || m.teamB,
+             refereeId: m.refereeId?._id || m.refereeId // we could also use the name directly
+         }));
+         setMatches(formattedMatches);
+     }).catch(() => {
+         toast.error("Failed to load matches");
+     });
+
+     api.get('/users/referees').then(res => {
+         if (res.data?.data?.referees) {
+             setAllReferees(res.data.data.referees);
+         }
+     }).catch(() => {});
+  }, []);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Reset pagination when filters change
-  // Removed useEffect to avoid cascading renders
-
   // Get current tournament details
-  const currentTournament = MOCK_TOURNAMENTS.find(t => t.id === selectedTournamentId);
+  const currentTournament = tournaments.find(t => (t.id === selectedTournamentId || t._id === selectedTournamentId));
 
   const handleTournamentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedTournamentId(e.target.value);
@@ -42,7 +75,7 @@ export const SchoolFixtures = () => {
   };
 
   // 1. Filter matches by Tournament AND Type (Upcoming/History)
-  const filteredMatches = MOCK_MATCHES.filter(match => {
+  const filteredMatches = matches.filter(match => {
     // Filter by Tournament ID
     if (match.tournamentId !== selectedTournamentId) return false;
 
@@ -63,21 +96,20 @@ export const SchoolFixtures = () => {
   const currentMatches = filteredMatches.slice(indexOfFirstItem, indexOfLastItem);
 
   // 2. Filter Standings by Tournament
-  const filteredStandings = MOCK_POINTS_TABLE.filter(entry => entry.tournamentId === selectedTournamentId);
+  const filteredStandings = currentTournament?.pointsTable || [];
 
   const getRefereeName = (id: string) => {
-    const ref = MOCK_REFEREES.find(r => r.id === id);
+    const ref = allReferees.find(r => r._id === id || r.id === id);
     return ref ? ref.name : 'Unassigned';
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Matches & Results</h1>
-          <p className="text-slate-500">Track fixtures, results, and point tables for every league.</p>
+          <p className="text-slate-500">Track fixtures, results, and point tables for every published tournament.</p>
         </div>
-        <Button variant="outline" onClick={() => exportToExcel(currentMatches, 'Matches')}>Export Excel</Button>
       </div>
 
       {/* 1. Tournament Selector (Context Switcher) */}
@@ -91,8 +123,8 @@ export const SchoolFixtures = () => {
                         onChange={handleTournamentChange}
                         className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold appearance-none text-sm"
                     >
-                        {MOCK_TOURNAMENTS.map(t => (
-                            <option key={t.id} value={t.id}>{t.name} ({t.sport})</option>
+                        {tournaments.map(t => (
+                            <option key={t.id || t._id} value={t.id || t._id}>{t.name} ({t.sport})</option>
                         ))}
                     </select>
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -112,12 +144,12 @@ export const SchoolFixtures = () => {
                 <div>
                     <p className="text-xs text-slate-500 uppercase font-bold">Dates</p>
                     <p className="text-sm font-bold text-slate-900 truncate">
-                        {currentTournament ? `${new Date(currentTournament.startDate).toLocaleDateString()} - ${new Date(currentTournament.endDate).toLocaleDateString()}` : '-'}
+                        {currentTournament?.startDate ? `${new Date(currentTournament.startDate).toLocaleDateString()} - ${new Date(currentTournament.endDate).toLocaleDateString()}` : '-'}
                     </p>
                 </div>
                 <div>
                     <p className="text-xs text-slate-500 uppercase font-bold">Sport</p>
-                    <p className="text-sm font-bold text-slate-900 truncate">{currentTournament?.sport}</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{currentTournament?.sport || '-'}</p>
                 </div>
             </div>
         </div>
@@ -180,29 +212,29 @@ export const SchoolFixtures = () => {
                             <div className="hidden md:grid grid-cols-12 gap-4 p-5 items-center">
                                 <div className="col-span-4">
                                     <div className="flex items-center space-x-3">
-                                        <div className={`p-2 rounded-lg ${match.sport === 'Cricket' ? 'bg-blue-50 text-blue-600' : match.sport === 'Basketball' ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'}`}>
-                                            {match.sport === 'Cricket' ? '🏏' : match.sport === 'Basketball' ? '🏀' : '🏸'}
+                                        <div className={`p-2 rounded-lg ${match.sport === 'Cricket' ? 'bg-blue-50 text-blue-600' : match.sport === 'Badminton' ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'}`}>
+                                            {match.sport === 'Cricket' ? '🏏' : match.sport === 'Badminton' ? '🏸' : '🏸'}
                                         </div>
                                         <div>
                                             <p className="font-bold text-slate-900 text-sm">{new Date(match.date).toLocaleDateString()}</p>
-                                            <p className="text-xs text-slate-500 truncate max-w-[150px]">{match.location}</p>
+                                            <p className="text-xs text-slate-500 truncate max-w-[150px]">{match.location || 'TBA'}</p>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div className="col-span-5 flex flex-col items-center justify-center border-l border-r border-slate-50 px-2">
                                     <div className="flex items-center justify-between w-full">
-                                        <span className={`text-sm font-bold flex-1 text-right truncate ${match.teamA.includes('Springfield') ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamA}</span>
+                                        <span className={`text-sm font-bold flex-1 text-right truncate ${match.teamA?.includes('Springfield') ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamA || 'TBA'}</span>
                                         <div className="mx-4 text-center">
                                             {matchTypeFilter === 'HISTORY' ? (
                                                 <span className="font-mono font-bold bg-slate-100 px-3 py-1 rounded text-slate-900 min-w-[80px] block border border-slate-200 text-sm">
-                                                    {match.scoreA} - {match.scoreB}
+                                                    {match.scoreA ?? '-'} - {match.scoreB ?? '-'}
                                                 </span>
                                             ) : (
                                                 <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded text-slate-500 block">VS</span>
                                             )}
                                         </div>
-                                        <span className={`text-sm font-bold flex-1 text-left truncate ${match.teamB.includes('Springfield') ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamB}</span>
+                                        <span className={`text-sm font-bold flex-1 text-left truncate ${match.teamB?.includes('Springfield') ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamB || 'TBA'}</span>
                                     </div>
                                 </div>
 
@@ -236,12 +268,12 @@ export const SchoolFixtures = () => {
                                 
                                 <div className="flex justify-between items-center mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
                                     <div className="text-left w-2/5 overflow-hidden">
-                                        <p className="font-bold text-slate-900 text-sm mb-1 truncate">{match.teamA}</p>
+                                        <p className="font-bold text-slate-900 text-sm mb-1 truncate">{match.teamA || 'TBA'}</p>
                                         {matchTypeFilter === 'HISTORY' && <p className="text-lg font-mono font-bold text-slate-800">{match.scoreA}</p>}
                                     </div>
                                     <div className="text-xs font-bold text-slate-400">VS</div>
                                     <div className="text-right w-2/5 overflow-hidden">
-                                        <p className="font-bold text-slate-900 text-sm mb-1 truncate">{match.teamB}</p>
+                                        <p className="font-bold text-slate-900 text-sm mb-1 truncate">{match.teamB || 'TBA'}</p>
                                         {matchTypeFilter === 'HISTORY' && <p className="text-lg font-mono font-bold text-slate-800">{match.scoreB}</p>}
                                     </div>
                                 </div>
@@ -250,7 +282,7 @@ export const SchoolFixtures = () => {
                                     <div className="flex items-center truncate max-w-[60%]">
                                          <Clock className="h-3 w-3 mr-1" /> {new Date(match.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                     </div>
-                                    <div className="truncate">{match.location}</div>
+                                    <div className="truncate">{match.location || 'TBA'}</div>
                                 </div>
                             </div>
                         </div>
@@ -287,7 +319,7 @@ export const SchoolFixtures = () => {
         </>
       ) : (
         /* STANDINGS VIEW */
-        <StandingsTable entries={filteredStandings} sport={currentTournament?.sport || 'Generic'} />
+        <StandingsTable entries={filteredStandings as any} sport={currentTournament?.sport || 'Generic'} />
       )}
 
       {/* Detail Modal Component */}
@@ -295,6 +327,6 @@ export const SchoolFixtures = () => {
         match={selectedMatch} 
         onClose={() => setSelectedMatch(null)} 
       />
-    </DashboardLayout>
+    </>
   );
 };

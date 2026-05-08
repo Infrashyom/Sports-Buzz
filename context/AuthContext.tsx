@@ -5,8 +5,9 @@ import api from '../services/api';
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<User>;
+  loginAsSchool: (schoolId: string) => Promise<string>;
   logout: () => void;
-  updateProfile: (data: { name?: string; avatar?: string }) => Promise<void>;
+  updateProfile: (data: { name?: string; avatar?: string; availability?: boolean }) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
@@ -20,13 +21,14 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
       if (token) {
         try {
           const response = await api.get('/auth/me');
           setUser(response.data.data.user);
         } catch (error) {
           console.error('Failed to fetch user', error);
+          sessionStorage.removeItem('token');
           localStorage.removeItem('token');
         }
       }
@@ -49,12 +51,24 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const loginAsSchool = async (schoolId: string): Promise<string> => {
+    try {
+      const response = await api.post(`/admin/impersonate/${schoolId}`);
+      const { token } = response.data;
+      return token;
+    } catch (error) {
+      console.error('Impersonation failed', error);
+      throw error;
+    }
+  };
+
   const logout = () => {
+    sessionStorage.removeItem('token');
     localStorage.removeItem('token');
     setUser(null);
   };
 
-  const updateProfile = async (data: { name?: string; avatar?: string }) => {
+  const updateProfile = async (data: { name?: string; avatar?: string; availability?: boolean }) => {
     try {
       const response = await api.patch('/auth/updateMe', data);
       setUser(response.data.data.user);
@@ -74,7 +88,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateProfile, updatePassword, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ user, login, loginAsSchool, logout, updateProfile, updatePassword, isAuthenticated: !!user, loading }}>
       {children}
     </AuthContext.Provider>
   );

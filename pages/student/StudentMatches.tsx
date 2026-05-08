@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { useAuth } from '../../context/AuthContext';
-import { MOCK_MATCHES, MOCK_TEAMS, MOCK_STUDENTS } from '../../services/mockData';
 import { MapPin, Calendar, Clock, ChevronRight, Search } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { MatchDetailModal } from '../../components/fixtures/MatchDetailModal';
 import { Match } from '../../types';
-
-import { exportToExcel } from '../../services/export';
+import api from '../../services/api';
 
 export const StudentMatches = () => {
   const { user } = useAuth();
@@ -18,14 +16,42 @@ export const StudentMatches = () => {
   const [visibleCount, setVisibleCount] = useState(5);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   
-  const student = MOCK_STUDENTS.find(s => s.id === user?.id) || MOCK_STUDENTS[0];
-  const myTeams = MOCK_TEAMS.filter(t => t.playerIds.includes(student.id));
-  const myTeamNames = myTeams.map(t => t.name);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [myTeamNames, setMyTeamNames] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch matches and user's teams
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      try {
+        const [matchRes, teamRes] = await Promise.all([
+            api.get('/matches'),
+            api.get('/teams')
+        ]);
+        const allTeams = teamRes.data.data.teams;
+        const myTeams = allTeams.filter((t: any) => t.playerIds && t.playerIds.includes(user.id));
+        setMyTeamNames(myTeams.map((t: any) => t.name));
+
+        const transformedMatches = matchRes.data.data.matches.map((m: any) => ({
+            ...m,
+            id: m._id,
+            teamA: m.teamA?.name || m.teamA,
+            teamB: m.teamB?.name || m.teamB
+        }));
+        setMatches(transformedMatches);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [user]);
 
   // Filter matches
-  const allMyMatches = MOCK_MATCHES.filter(m => 
-    myTeamNames.some(teamName => m.teamA === teamName || m.teamB === teamName) ||
-    (m.teamA.includes('Springfield') || m.teamB.includes('Springfield'))
+  const allMyMatches = matches.filter(m => 
+    myTeamNames.some(teamName => m.teamA === teamName || m.teamB === teamName)
   );
 
   const filteredMatches = allMyMatches.filter(m => {
@@ -33,8 +59,12 @@ export const StudentMatches = () => {
         ? (m.status === 'SCHEDULED' || m.status === 'LIVE')
         : (m.status === 'VERIFIED' || m.status === 'COMPLETED');
     
-    const matchesSearch = m.teamA.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          m.teamB.toLowerCase().includes(searchTerm.toLowerCase());
+    // Safety check if teamA / teamB are populated objects or strings
+    const matchSearchA = typeof m.teamA === 'string' ? m.teamA : '';
+    const matchSearchB = typeof m.teamB === 'string' ? m.teamB : '';
+    
+    const matchesSearch = matchSearchA.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          matchSearchB.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesSport = sportFilter === 'All' || m.sport === sportFilter;
 
@@ -47,16 +77,14 @@ export const StudentMatches = () => {
   const loadMore = () => setVisibleCount(prev => prev + 5);
 
   return (
-    <DashboardLayout>
+    <>
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Match Center</h1>
           <p className="text-slate-500">Track fixtures and past results.</p>
         </div>
-        <Button variant="outline" onClick={() => exportToExcel(filteredMatches, 'Matches')}>Export Excel</Button>
       </div>
 
-      {/* Filters and Tabs */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex space-x-1 bg-white border border-slate-200 p-1 rounded-lg inline-flex self-start">
             <button
@@ -95,25 +123,27 @@ export const StudentMatches = () => {
             >
                 <option value="All">All Sports</option>
                 <option value="Cricket">Cricket</option>
-                <option value="Basketball">Basketball</option>
                 <option value="Badminton">Badminton</option>
             </select>
         </div>
       </div>
 
       <div className="space-y-4">
-        {displayedMatches.length > 0 ? (
+        {isLoading ? (
+           <div className="text-center py-12">
+               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+           </div>
+        ) : displayedMatches.length > 0 ? (
           <>
             {displayedMatches.map(match => {
-                const isSpringfieldA = match.teamA.includes('Springfield');
-                const myScore = isSpringfieldA ? match.scoreA : match.scoreB;
-                const oppScore = isSpringfieldA ? match.scoreB : match.scoreA;
+                const isMyTeamA = myTeamNames.includes(match.teamA as unknown as string);
+                const myScore = isMyTeamA ? match.scoreA : match.scoreB;
+                const oppScore = isMyTeamA ? match.scoreB : match.scoreA;
                 const isWin = (myScore || 0) > (oppScore || 0);
 
                 return (
                 <Card key={match.id} className="hover:shadow-md transition-shadow border border-slate-200">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    {/* Date & Sport */}
                     <div className="flex items-center md:flex-col md:items-start w-full md:w-auto justify-between md:justify-start">
                         <div className="flex flex-col items-center md:items-start text-center md:text-left min-w-[60px]">
                             <span className="text-xs font-bold text-red-500 uppercase">{new Date(match.date).toLocaleString('default', { month: 'short' })}</span>
@@ -124,17 +154,18 @@ export const StudentMatches = () => {
                         </span>
                     </div>
 
-                    {/* Teams */}
                     <div className="flex-1 w-full text-center md:text-left border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
                         <div className="flex items-center justify-between md:justify-start md:space-x-8">
                         <div className="flex-1 text-right md:text-left">
-                            <p className={`font-bold ${isSpringfieldA ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamA}</p>
+                            <p className={`font-bold ${isMyTeamA ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamA as unknown as string}</p>
                         </div>
                         
                         <div className="px-4">
                             {activeTab === 'HISTORY' ? (
                                 <div className="bg-slate-100 px-3 py-1 rounded text-lg font-mono font-bold whitespace-nowrap text-slate-900 border border-slate-200">
-                                    {match.scoreA} - {match.scoreB}
+                                    {match.sport === 'Cricket' 
+                                        ? `${match.scoreA||0}/${match.details?.wicketsA||0} - ${match.scoreB||0}/${match.details?.wicketsB||0}`
+                                        : `${match.scoreA||0} - ${match.scoreB||0}`}
                                 </div>
                             ) : (
                                 <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">VS</span>
@@ -142,7 +173,7 @@ export const StudentMatches = () => {
                         </div>
 
                         <div className="flex-1 text-left">
-                            <p className={`font-bold ${!isSpringfieldA ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamB}</p>
+                            <p className={`font-bold ${!isMyTeamA ? 'text-slate-900' : 'text-slate-500'}`}>{match.teamB as unknown as string}</p>
                         </div>
                         </div>
                         
@@ -155,7 +186,6 @@ export const StudentMatches = () => {
                         </div>
                     </div>
 
-                    {/* Action/Result */}
                     <div className="w-full md:w-auto flex justify-center border-t md:border-t-0 border-slate-100 pt-4 md:pt-0">
                         {activeTab === 'HISTORY' ? (
                             <div className="flex flex-col items-center space-y-2">
@@ -203,7 +233,7 @@ export const StudentMatches = () => {
         match={selectedMatch} 
         onClose={() => setSelectedMatch(null)} 
         isAdmin={false} 
-      />
-    </DashboardLayout>
+      /></>
+    
   );
 };

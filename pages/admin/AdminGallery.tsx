@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Trash2, Plus, Image as ImageIcon } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MOCK_GALLERY } from '../../services/mockData';
 
 interface GalleryItem {
   _id: string;
@@ -14,7 +13,6 @@ interface GalleryItem {
   description?: string;
 }
 
-import { exportToExcel } from '../../services/export';
 
 export const AdminGallery = () => {
   const [items, setItems] = useState<GalleryItem[]>([]);
@@ -26,13 +24,9 @@ export const AdminGallery = () => {
   const fetchGallery = async () => {
     try {
       const res = await api.get('/gallery');
-      if (res.data.data.items.length === 0) {
-        setItems(MOCK_GALLERY);
-      } else {
-        setItems(res.data.data.items);
-      }
+      setItems(res.data.data.items);
     } catch {
-      setItems(MOCK_GALLERY);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -63,13 +57,7 @@ export const AdminGallery = () => {
       setDescription('');
       fetchGallery();
     } catch {
-      // Fallback for demo
-      const newItem = { _id: `g${Date.now()}`, title, imageUrl, description };
-      setItems([newItem, ...items]);
-      toast.success('Gallery item added locally (Demo mode)');
-      setTitle('');
-      setImageUrl('');
-      setDescription('');
+      toast.error('Failed to add gallery item');
     }
   };
 
@@ -81,20 +69,17 @@ export const AdminGallery = () => {
       toast.success('Gallery item deleted');
       fetchGallery();
     } catch {
-      // Fallback for demo
-      setItems(items.filter(item => item._id !== id));
-      toast.success('Gallery item deleted locally (Demo mode)');
+      toast.error('Failed to delete gallery item');
     }
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Gallery Management</h1>
           <p className="text-slate-500">Manage images shown on the public landing page.</p>
         </div>
-        <Button variant="outline" onClick={() => exportToExcel(items, 'Gallery')}>Export Excel</Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -176,7 +161,7 @@ export const AdminGallery = () => {
             )}
           </Card>
         </div>
-      </div>
-    </DashboardLayout>
+      </div></>
+    
   );
 };

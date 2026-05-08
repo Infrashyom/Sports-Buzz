@@ -4,13 +4,15 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UserRole } from './types';
 import { DashboardLayout } from './components/layout/DashboardLayout';
+import { PublicLayout } from './components/layout/PublicLayout';
 
-const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
-const About = React.lazy(() => import('./pages/About').then(m => ({ default: m.About })));
-const Contact = React.lazy(() => import('./pages/Contact').then(m => ({ default: m.Contact })));
-const PublicTournaments = React.lazy(() => import('./pages/PublicTournaments').then(m => ({ default: m.PublicTournaments })));
-const Gallery = React.lazy(() => import('./pages/Gallery').then(m => ({ default: m.Gallery })));
-const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+import { Home } from './pages/Home';
+import { About } from './pages/About';
+import { Contact } from './pages/Contact';
+import { PublicTournaments } from './pages/PublicTournaments';
+import { Gallery } from './pages/Gallery';
+import { Login } from './pages/Login';
+import { Impersonate } from './pages/Impersonate';
 
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminGallery = React.lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
@@ -85,6 +87,14 @@ const ProtectedRoute = ({ children, allowedRoles }: { children?: React.ReactNode
   return <>{children}</>;
 };
 
+const PublicLayoutWrapper = () => {
+  return (
+    <PublicLayout>
+      <Outlet />
+    </PublicLayout>
+  );
+};
+
 const DashboardLayoutWrapper = () => {
   return (
     <DashboardLayout>
@@ -98,17 +108,14 @@ const DashboardLayoutWrapper = () => {
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route element={
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
-          <Outlet />
-        </Suspense>
-      }>
+      <Route element={<PublicLayoutWrapper />}>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/tournaments" element={<PublicTournaments />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/impersonate/:token" element={<Impersonate />} />
       </Route>
       
       {/* Authenticated Routes */}
@@ -149,7 +156,7 @@ const AppRoutes = () => {
       <Route 
         path="/admin/tournaments" 
         element={
-          <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.REFEREE]}>
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
             <TournamentManagement />
           </ProtectedRoute>
         } 

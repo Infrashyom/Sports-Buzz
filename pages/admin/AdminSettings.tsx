@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Save, Phone, Mail, MapPin, Edit2, X, Image as ImageIcon } from 'lucide-react';
@@ -8,32 +8,28 @@ import toast from 'react-hot-toast';
 export const AdminSettings = () => {
   const [isEditing, setIsEditing] = useState(false);
   
-  const [platformName, setPlatformName] = useState('Sports Buzz');
-  const [timezone] = useState('IST (Indian Standard Time)');
-  const [logoUrl, setLogoUrl] = useState('https://ui-avatars.com/api/?name=Sports+Buzz&background=2563eb&color=fff');
-  
-  // Contact Info State
-  const [contactEmail, setContactEmail] = useState('support@sportsbuzz.com');
-  const [contactPhone, setContactPhone] = useState('+91 98765 43210');
-  const [contactAddress, setContactAddress] = useState('Tilak nagar Paota jodhpur 342006');
-
-  useEffect(() => {
-    // Load from local storage if available
+  const getInitialContact = () => {
     const savedContact = localStorage.getItem('sportsBuzzContact');
     if (savedContact) {
-      const parsed = JSON.parse(savedContact);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.email) setContactEmail(parsed.email);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.phone) setContactPhone(parsed.phone);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.address) setContactAddress(parsed.address);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.logoUrl) setLogoUrl(parsed.logoUrl);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.platformName) setPlatformName(parsed.platformName);
+      try {
+        return JSON.parse(savedContact);
+      } catch {
+        return {};
+      }
     }
-  }, []);
+    return {};
+  };
+
+  const initialContact = getInitialContact();
+
+  const [platformName, setPlatformName] = useState(initialContact.platformName || 'Sports Buzz');
+  const [timezone] = useState('IST (Indian Standard Time)');
+  const [logoUrl, setLogoUrl] = useState(initialContact.logoUrl || 'https://ui-avatars.com/api/?name=Sports+Buzz&background=2563eb&color=fff');
+  
+  // Contact Info State
+  const [contactEmail, setContactEmail] = useState(initialContact.email || 'support@sportsbuzz.com');
+  const [contactPhone, setContactPhone] = useState(initialContact.phone || '+91 98765 43210');
+  const [contactAddress, setContactAddress] = useState(initialContact.address || 'Tilak nagar Paota jodhpur 342006');
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,8 +70,8 @@ export const AdminSettings = () => {
     setIsEditing(false);
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Platform Settings</h1>
@@ -187,7 +183,7 @@ export const AdminSettings = () => {
                 </div>
             </div>
         </Card>
-      </div>
-    </DashboardLayout>
+      </div></>
+    
   );
 };

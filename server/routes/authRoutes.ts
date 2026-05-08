@@ -11,5 +11,6 @@ router.use(authMiddleware.protect);
 router.get('/me', authController.getMe);
 router.patch('/updateMe', authController.updateMe);
 router.patch('/updateMyPassword', authController.updatePassword);
+router.post('/certifications', authController.addCertification);
 
 export default router;

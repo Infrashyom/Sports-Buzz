@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { Mail, Phone, MapPin, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,21 +13,25 @@ export const Contact = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [contactInfo, setContactInfo] = useState({
-    email: 'hello@sportsbuzz.com',
-    phone: '8209564347',
-    address: 'Tilak Nagar, Paota\nJodhpur, Rajasthan 342006'
-  });
-
-  useEffect(() => {
+  const getInitialContact = () => {
     const savedContact = localStorage.getItem('sportsBuzzContact');
     if (savedContact) {
-      const parsed = JSON.parse(savedContact);
-      if (parsed.email) setContactInfo(prev => ({ ...prev, email: parsed.email }));
-      if (parsed.phone) setContactInfo(prev => ({ ...prev, phone: parsed.phone }));
-      if (parsed.address) setContactInfo(prev => ({ ...prev, address: parsed.address }));
+      try {
+        return JSON.parse(savedContact);
+      } catch {
+        return {};
+      }
     }
-  }, []);
+    return {};
+  };
+
+  const initialContact = getInitialContact();
+
+  const [contactInfo] = useState({
+    email: initialContact.email || 'hello@sportsbuzz.com',
+    phone: initialContact.phone || '8209564347',
+    address: initialContact.address || 'Tilak Nagar, Paota\nJodhpur, Rajasthan 342006'
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -49,7 +53,7 @@ export const Contact = () => {
     }
   };
 
-  return (
+  return (<>
     <PublicLayout>
       <section className="pt-32 pb-24 bg-slate-900 px-4 sm:px-6 lg:px-8 min-h-screen flex items-center">
         <div className="max-w-7xl mx-auto w-full">
@@ -130,6 +134,6 @@ export const Contact = () => {
           </div>
         </div>
       </section>
-    </PublicLayout>
+    </PublicLayout></>
   );
 };

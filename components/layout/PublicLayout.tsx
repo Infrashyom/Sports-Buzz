@@ -1,23 +1,43 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { createContext, useContext } from 'react';
+import { Link, useLocation, Outlet } from 'react-router-dom';
 import { Trophy, Menu, X } from 'lucide-react';
 
+const PublicLayoutContext = createContext(false);
+
 export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
+  const isNested = useContext(PublicLayoutContext);
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [logoUrl, setLogoUrl] = React.useState('');
-  const [platformName, setPlatformName] = React.useState('Sports Buzz');
+  const getInitialContact = () => {
+    const savedContact = localStorage.getItem('sportsBuzzContact');
+    if (savedContact) {
+      try {
+        return JSON.parse(savedContact);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  };
+
+  const initialContact = getInitialContact();
+
+  const [logoUrl, setLogoUrl] = React.useState(initialContact.logoUrl || '');
+  const [platformName, setPlatformName] = React.useState(initialContact.platformName || 'Sports Buzz');
   const location = useLocation();
 
   React.useEffect(() => {
-    const savedContact = localStorage.getItem('sportsBuzzContact');
-    if (savedContact) {
-      const parsed = JSON.parse(savedContact);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.logoUrl) setLogoUrl(parsed.logoUrl);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (parsed.platformName) setPlatformName(parsed.platformName);
-    }
+    const handleLogoUpdated = () => {
+      const contact = getInitialContact();
+      setLogoUrl(contact.logoUrl || '');
+      setPlatformName(contact.platformName || 'Sports Buzz');
+    };
+    window.addEventListener('logoUpdated', handleLogoUpdated);
+    return () => window.removeEventListener('logoUpdated', handleLogoUpdated);
   }, []);
+
+  if (isNested) {
+    return <>{children || <Outlet />}</>;
+  }
 
   const isActive = (path: string) => {
     if (path === '/' && location.pathname !== '/') return false;
@@ -33,6 +53,7 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
   ];
 
   return (
+    <PublicLayoutContext.Provider value={true}>
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <header className="fixed top-4 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 pointer-events-none">
         <div className="max-w-6xl mx-auto">
@@ -102,7 +123,7 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
       </header>
 
       <main className="flex-grow">
-        {children}
+        {children || <Outlet />}
       </main>
 
       <footer className="bg-slate-950 text-slate-300 py-16 border-t border-slate-800">
@@ -150,5 +171,6 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </footer>
     </div>
+    </PublicLayoutContext.Provider>
   );
 };

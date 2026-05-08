@@ -1,28 +1,36 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { MOCK_REFEREES, MOCK_MATCHES } from '../../services/mockData';
-import { Search, Filter, Phone, Award, Plus, Star, Calendar } from 'lucide-react';
-import { User, UserRole } from '../../types';
+import { Search, Filter, Phone, Award, Plus, Star, Calendar, Eye, EyeOff } from 'lucide-react';
+import { UserRole } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
-import { exportToExcel } from '../../services/export';
 
 export const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Pending'>('All');
   
-  // Initialize with mock referees and some pending ones
-  const [referees, setReferees] = useState<User[]>([
-      ...MOCK_REFEREES.map(r => ({...r, status: 'Active' as const})),
-      { id: 'u3', name: 'Pending Referee', email: 'new.ref@gmail.com', role: UserRole.REFEREE, status: 'Pending', certifications: [{ name: 'State Umpire L1', status: 'Pending' }], mobile: '555-0123' }
-  ]);
+  const [referees, setReferees] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
 
-  const [selectedReferee, setSelectedReferee] = useState<User | null>(null);
+  useEffect(() => {
+    // Fetch referees
+    api.get('/users/referees').then(res => {
+      setReferees(res.data.data.referees);
+    }).catch(err => console.error(err));
+
+    // Fetch matches for match involvement stats
+    api.get('/matches').then(res => {
+      setMatches(res.data.data.matches);
+    }).catch(err => console.error(err));
+  }, []);
+
+  const [selectedReferee, setSelectedReferee] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [newReferee, setNewReferee] = useState({ name: '', email: '', experience: '', mobile: '', password: '' });
 
   const filteredReferees = referees.filter(r => {
@@ -36,10 +44,15 @@ export const AdminUsers = () => {
       return matchesSearch && matchesFilter;
   });
 
-  const handleVerify = (id: string) => {
-      setReferees(referees.map(r => r.id === id ? { ...r, status: 'Active' } : r));
-      setSelectedReferee(null);
-      toast.success("Referee approved and activated.");
+  const handleVerify = async (id: string) => {
+      try {
+        await api.patch(`/users/${id}/status`, { status: 'Active' });
+        setReferees(referees.map(r => r._id === id ? { ...r, status: 'Active' } : r));
+        setSelectedReferee(null);
+        toast.success("Referee approved and activated.");
+      } catch {
+        toast.error("Failed to approve referee.");
+      }
   };
 
   const handleAddReferee = async () => {
@@ -48,56 +61,33 @@ export const AdminUsers = () => {
           return;
       }
       try {
-          await api.post('/auth/register', {
+          const res = await api.post('/users', {
               name: newReferee.name,
               email: newReferee.email,
               password: newReferee.password,
               role: UserRole.REFEREE,
-              mobile: newReferee.mobile
+              mobile: newReferee.mobile,
+              experience: newReferee.experience,
+              status: 'Active' // Admin auto-activates
           });
 
-          const referee: User = {
-              id: `r${Date.now()}`,
-              name: newReferee.name,
-              email: newReferee.email,
-              role: UserRole.REFEREE,
-              status: 'Active', // Admin added referees are auto-active
-              experience: newReferee.experience,
-              mobile: newReferee.mobile,
-              avatar: `https://ui-avatars.com/api/?name=${newReferee.name}&background=random`
-          };
-          setReferees([...referees, referee]);
+          setReferees([...referees, res.data.data.user]);
           setIsAddModalOpen(false);
           setNewReferee({ name: '', email: '', experience: '', mobile: '', password: '' });
-          toast.success("Independent referee added successfully. Credentials sent to email.");
+          toast.success("Independent referee added successfully.");
       } catch {
-          // Fallback for demo
-          const referee: User = {
-              id: `r${Date.now()}`,
-              name: newReferee.name,
-              email: newReferee.email,
-              role: UserRole.REFEREE,
-              status: 'Active', // Admin added referees are auto-active
-              experience: newReferee.experience,
-              mobile: newReferee.mobile,
-              avatar: `https://ui-avatars.com/api/?name=${newReferee.name}&background=random`
-          };
-          setReferees([...referees, referee]);
-          setIsAddModalOpen(false);
-          setNewReferee({ name: '', email: '', experience: '', mobile: '', password: '' });
-          toast.success("Independent referee added locally (Demo mode).");
+          toast.error("Failed to add referee.");
       }
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
             <h1 className="text-2xl font-bold text-slate-900">Referee Management</h1>
             <p className="text-slate-500">Manage independent referees and view certifications.</p>
         </div>
         <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => exportToExcel(referees, 'Referees')}>Export Excel</Button>
             <Button onClick={() => setIsAddModalOpen(true)} className="flex items-center">
                  <Plus className="h-4 w-4 mr-2" /> Add Independent Referee
             </Button>
@@ -144,7 +134,7 @@ export const AdminUsers = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
                     {filteredReferees.map(referee => (
-                        <tr key={referee.id} className="hover:bg-slate-50">
+                        <tr key={referee._id || referee.id} className="hover:bg-slate-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                     <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold overflow-hidden">
@@ -211,25 +201,37 @@ export const AdminUsers = () => {
                       </h4>
                       {selectedReferee.certifications && selectedReferee.certifications.length > 0 ? (
                           <div className="space-y-2">
-                              {selectedReferee.certifications.map((cert: { name: string, status: 'Pending' | 'Verified' }, idx: number) => (
+                              {selectedReferee.certifications.map((cert: { name: string, status: 'Pending' | 'Verified', licenseId?: string }, idx: number) => (
                                   <div key={idx} className="bg-white p-3 border border-slate-100 rounded-lg text-sm text-slate-600 flex justify-between items-center">
-                                      <span>{cert.name}</span>
+                                      <span>
+                                        {cert.name}
+                                        {cert.licenseId && cert.licenseId.startsWith('http') && (
+                                            <a href={cert.licenseId} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline block mt-1">
+                                                View Document
+                                            </a>
+                                        )}
+                                      </span>
                                       <div className="flex items-center gap-2">
                                           <span className={`text-xs px-2 py-0.5 rounded-full ${cert.status === 'Verified' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                                               {cert.status}
                                           </span>
-                                          {cert.status === 'Pending' && (
+                                          {cert.status === 'Pending' && !selectedReferee.schoolId && (
                                               <Button 
                                                   size="sm" 
                                                   variant="outline" 
                                                   className="text-xs py-1 px-2 h-auto"
-                                                  onClick={() => {
+                                                  onClick={async () => {
                                                       const updatedCerts = [...(selectedReferee.certifications || [])];
                                                       updatedCerts[idx] = { ...cert, status: 'Verified' };
-                                                      const updatedReferee = { ...selectedReferee, certifications: updatedCerts };
-                                                      setReferees(referees.map(r => r.id === selectedReferee.id ? updatedReferee : r));
-                                                      setSelectedReferee(updatedReferee);
-                                                      toast.success('Certification verified successfully');
+                                                      try {
+                                                        await api.patch(`/users/${selectedReferee._id}`, { certifications: updatedCerts });
+                                                        const updatedReferee = { ...selectedReferee, certifications: updatedCerts };
+                                                        setReferees(referees.map(r => r._id === selectedReferee._id ? updatedReferee : r));
+                                                        setSelectedReferee(updatedReferee);
+                                                        toast.success('Certification verified successfully');
+                                                      } catch {
+                                                        toast.error('Failed to verify certification');
+                                                      }
                                                   }}
                                               >
                                                   Verify
@@ -249,11 +251,11 @@ export const AdminUsers = () => {
                           <Calendar className="h-4 w-4 mr-2 text-blue-500" /> Match Involvement
                       </h4>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {MOCK_MATCHES.filter(m => m.refereeId === selectedReferee.id).length > 0 ? (
-                              MOCK_MATCHES.filter(m => m.refereeId === selectedReferee.id).map(match => (
-                                  <div key={match.id} className="bg-white p-3 border border-slate-100 rounded-lg text-sm text-slate-600 flex justify-between items-center">
+                          {matches.filter(m => m.refereeId === (selectedReferee._id || selectedReferee.id)).length > 0 ? (
+                              matches.filter(m => m.refereeId === (selectedReferee._id || selectedReferee.id)).map(match => (
+                                  <div key={match._id || match.id} className="bg-white p-3 border border-slate-100 rounded-lg text-sm text-slate-600 flex justify-between items-center">
                                       <div>
-                                          <p className="font-bold text-slate-800">{match.teamA} vs {match.teamB}</p>
+                                          <p className="font-bold text-slate-800">{match.title || `${match.teamA} vs ${match.teamB}`}</p>
                                           <p className="text-xs text-slate-500">{new Date(match.date).toLocaleDateString()} • {match.sport}</p>
                                       </div>
                                       <span className={`text-xs px-2 py-1 rounded-full font-bold ${match.status === 'VERIFIED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -275,10 +277,15 @@ export const AdminUsers = () => {
                           {[1, 2, 3, 4, 5].map((star) => (
                               <button 
                                   key={star} 
-                                  onClick={() => {
-                                      setReferees(referees.map(r => r.id === selectedReferee.id ? { ...r, rating: star } : r));
-                                      setSelectedReferee({ ...selectedReferee, rating: star });
-                                      toast.success(`Rated ${star} stars!`);
+                                  onClick={async () => {
+                                      try {
+                                        await api.patch(`/users/${selectedReferee._id}`, { rating: star });
+                                        setReferees(referees.map(r => r._id === selectedReferee._id ? { ...r, rating: star } : r));
+                                        setSelectedReferee({ ...selectedReferee, rating: star });
+                                        toast.success(`Rated ${star} stars!`);
+                                      } catch {
+                                        toast.error("Failed to rate referee");
+                                      }
                                   }}
                                   className={`p-1 hover:scale-110 transition-transform ${selectedReferee.rating && selectedReferee.rating >= star ? 'text-yellow-500' : 'text-slate-300'}`}
                               >
@@ -291,7 +298,7 @@ export const AdminUsers = () => {
                   {(selectedReferee.status === 'Pending' || selectedReferee.status === undefined) && (
                       <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                           <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:border-red-200">Reject</Button>
-                          <Button onClick={() => handleVerify(selectedReferee.id)}>Approve & Activate</Button>
+                          <Button onClick={() => handleVerify(selectedReferee._id || selectedReferee.id)}>Approve & Activate</Button>
                       </div>
                   )}
               </div>
@@ -328,13 +335,22 @@ export const AdminUsers = () => {
                   </div>
                   <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Initial Password <span className="text-red-500">*</span></label>
-                      <input 
-                        type="password" 
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
-                        placeholder="Set initial password"
-                        value={newReferee.password}
-                        onChange={(e) => setNewReferee({...newReferee, password: e.target.value})}
-                      />
+                      <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"} 
+                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none pr-10"
+                          placeholder="Set initial password"
+                          value={newReferee.password}
+                          onChange={(e) => setNewReferee({...newReferee, password: e.target.value})}
+                        />
+                        <button 
+                          type="button" 
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
                   </div>
               </div>
               <div>
@@ -348,11 +364,12 @@ export const AdminUsers = () => {
                   />
               </div>
               <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Experience / Bio</label>
-                  <textarea 
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Experience (Years)</label>
+                  <input 
+                    type="number"
+                    min="0"
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
-                    placeholder="Years of experience, sports specialized in..."
-                    rows={3}
+                    placeholder="e.g. 5"
                     value={newReferee.experience}
                     onChange={(e) => setNewReferee({...newReferee, experience: e.target.value})}
                   />
@@ -362,7 +379,7 @@ export const AdminUsers = () => {
                   <Button onClick={handleAddReferee} disabled={!newReferee.name || !newReferee.email || !newReferee.password}>Add Referee</Button>
               </div>
           </div>
-      </Modal>
-    </DashboardLayout>
+      </Modal></>
+    
   );
 };

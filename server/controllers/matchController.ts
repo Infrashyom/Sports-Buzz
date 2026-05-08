@@ -11,7 +11,8 @@ export const getAllMatches = catchAsync(async (req: Request, res: Response) => {
   const matches = await Match.find(filter)
     .populate('teamA', 'name')
     .populate('teamB', 'name')
-    .populate('refereeId', 'name');
+    .populate('refereeId', 'name')
+    .populate('sportId', 'name icon rules');
 
   res.status(200).json({
     status: 'success',

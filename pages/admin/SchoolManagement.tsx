@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import React, { useState, useEffect } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Search, Filter, CheckCircle, XCircle, Plus, MapPin, Mail, Phone, Edit2 } from 'lucide-react';
-import { MOCK_SCHOOLS } from '../../services/mockData';
+import { Search, Filter, CheckCircle, XCircle, Plus, MapPin, Mail, Phone, Edit2, LogIn, Eye, EyeOff } from 'lucide-react';
 import { School } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 import { exportToExcel } from '../../services/export';
 
@@ -15,12 +15,47 @@ export const SchoolManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Inactive' | 'Paid' | 'Pending' | 'Overdue'>('All');
   
-  // Initialize schools with mock data and default payment status if missing
-  const [schools, setSchools] = useState<School[]>(MOCK_SCHOOLS.map(s => ({ ...s, paymentStatus: s.isSubscribed ? 'Paid' : 'Pending' })));
+  const [schools, setSchools] = useState<School[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
   
+    const { loginAsSchool } = useAuth();
+
+    const handleLoginAsSchool = async (school: School) => {
+        try {
+            const token = await loginAsSchool(school.id);
+            toast.success(`Opening login for ${school.name}...`);
+            const targetUrl = new URL(`/impersonate/${token}`, window.location.origin).toString();
+            window.open(targetUrl, '_blank');
+        } catch {
+            toast.error('Failed to impersonate school');
+        }
+    };
+
+  const fetchSchools = async () => {
+    try {
+      const res = await api.get('/schools');
+      // Normalize _id to id
+      const formattedSchools = res.data.data.schools.map((s: any) => ({
+        ...s,
+        id: s._id,
+        isSubscribed: s.paymentStatus === 'Paid' || s.isSubscribed,
+      }));
+      setSchools(formattedSchools);
+    } catch (error) {
+      console.error('Failed to load schools', error);
+      toast.error('Failed to load schools from server');
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSchools();
+  }, []);
+
+  const [showPassword, setShowPassword] = useState(false);
+
   // Form State
   const [formData, setFormData] = useState<Partial<School> & { password?: string }>({
     name: '',
@@ -110,8 +145,10 @@ export const SchoolManagement = () => {
         setSchools([...schools, school]);
         toast.success("School created successfully. Credentials sent to email.");
         setIsModalOpen(false);
+        fetchSchools();
       } catch {
         // Fallback for demo
+        toast.error("Failed to register school. Trying local mock.");
         const school: School = {
           id: `s${Date.now()}`,
           name: formData.name!,
@@ -133,8 +170,8 @@ export const SchoolManagement = () => {
     }
   };
 
-  return (
-    <DashboardLayout>
+  return (<>
+    
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">School Management</h1>
@@ -253,6 +290,14 @@ export const SchoolManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
                         <button 
+                            onClick={() => handleLoginAsSchool(school)}
+                            className="flex items-center text-slate-500 hover:text-green-600 p-2 hover:bg-green-50 rounded transition-colors text-xs space-x-1"
+                            title={`Login as ${school.name}`}
+                        >
+                            <LogIn className="h-3.5 w-3.5" />
+                            <span>Login</span>
+                        </button>
+                        <button 
                             onClick={() => handleOpenEditModal(school)}
                             className="text-slate-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-full transition-colors"
                             title="Edit School"
@@ -359,13 +404,22 @@ export const SchoolManagement = () => {
                   {!isEditMode && (
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Initial Password <span className="text-red-500">*</span></label>
-                      <input 
-                          type="password" 
-                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
-                          placeholder="Set initial password"
-                          value={formData.password}
-                          onChange={(e) => setFormData({...formData, password: e.target.value})}
-                      />
+                      <div className="relative">
+                        <input 
+                            type={showPassword ? "text" : "password"}
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none pr-10"
+                            placeholder="Set initial password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </div>
                   )}
               </div>
@@ -389,7 +443,7 @@ export const SchoolManagement = () => {
                   </Button>
               </div>
           </div>
-      </Modal>
-    </DashboardLayout>
+      </Modal></>
+    
   );
 };
