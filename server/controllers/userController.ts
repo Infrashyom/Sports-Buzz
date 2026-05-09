@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
+import { NextFunction, Request, Response } from 'express';
 import { User } from '../models/User';
 import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
@@ -95,7 +95,7 @@ export const updateUserStatus = catchAsync(async (req: Request, res: Response, n
 });
 
 export const getReferees = catchAsync(async (req: Request, res: Response) => {
-  const referees = await User.find({ role: 'REFEREE' });
+  const referees = await User.find({ role: 'REFEREE' }).populate('schoolId', 'name');
 
   res.status(200).json({
     status: 'success',

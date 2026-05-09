@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Search, Filter, Phone, Award, Plus, Star, Calendar, Eye, EyeOff } from 'lucide-react';
+import { Search, Phone, Plus, Star, Calendar, Eye, EyeOff, Award } from 'lucide-react';
 import { UserRole } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
@@ -11,7 +11,6 @@ import api from '../../services/api';
 
 export const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Pending'>('All');
   
   const [referees, setReferees] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
@@ -30,30 +29,15 @@ export const AdminUsers = () => {
 
   const [selectedReferee, setSelectedReferee] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [newReferee, setNewReferee] = useState({ name: '', email: '', experience: '', mobile: '', password: '' });
+  const [editReferee, setEditReferee] = useState({ _id: '', name: '', email: '', experience: '', mobile: '' });
 
   const filteredReferees = referees.filter(r => {
-      const matchesSearch = r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            r.email.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      let matchesFilter = true;
-      if (filterStatus === 'Active') matchesFilter = r.status === 'Active';
-      else if (filterStatus === 'Pending') matchesFilter = r.status === 'Pending';
-
-      return matchesSearch && matchesFilter;
+      return r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             r.email.toLowerCase().includes(searchTerm.toLowerCase());
   });
-
-  const handleVerify = async (id: string) => {
-      try {
-        await api.patch(`/users/${id}/status`, { status: 'Active' });
-        setReferees(referees.map(r => r._id === id ? { ...r, status: 'Active' } : r));
-        setSelectedReferee(null);
-        toast.success("Referee approved and activated.");
-      } catch {
-        toast.error("Failed to approve referee.");
-      }
-  };
 
   const handleAddReferee = async () => {
       if (!newReferee.name || !newReferee.email || !newReferee.password) {
@@ -78,6 +62,30 @@ export const AdminUsers = () => {
       } catch {
           toast.error("Failed to add referee.");
       }
+  };
+
+  const handleEditReferee = async () => {
+    if (!editReferee.name || !editReferee.email) {
+        toast.error("Please fill all mandatory fields.");
+        return;
+    }
+    try {
+        const res = await api.patch(`/users/${editReferee._id}`, {
+            name: editReferee.name,
+            email: editReferee.email,
+            mobile: editReferee.mobile,
+            experience: editReferee.experience
+        });
+
+        setReferees(referees.map(r => r._id === editReferee._id ? res.data.data.user : r));
+        setIsEditModalOpen(false);
+        if (selectedReferee && selectedReferee._id === editReferee._id) {
+            setSelectedReferee(res.data.data.user);
+        }
+        toast.success("Referee details updated successfully.");
+    } catch {
+        toast.error("Failed to update referee.");
+    }
   };
 
   return (<>
@@ -106,18 +114,6 @@ export const AdminUsers = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
              </div>
-             <div className="w-full md:w-auto relative">
-                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                 <select 
-                    className="w-full md:w-48 pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700 appearance-none cursor-pointer"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value as 'All' | 'Active' | 'Pending')}
-                 >
-                     <option value="All">All Status</option>
-                     <option value="Active">Active</option>
-                     <option value="Pending">Pending Review</option>
-                 </select>
-             </div>
         </div>
       </Card>
 
@@ -128,7 +124,7 @@ export const AdminUsers = () => {
                     <tr>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Referee</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Experience</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Added By</th>
                         <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
@@ -148,16 +144,28 @@ export const AdminUsers = () => {
                                 </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="text-sm text-slate-600">{referee.experience || 'N/A'}</span>
+                                <span className="text-sm text-slate-600">{referee.experience ? `${referee.experience} years` : 'N/A'}</span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
-                                {referee.status === 'Pending' ? (
-                                    <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">Pending Review</span>
+                                {referee.schoolId ? (
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">{referee.schoolId.name || 'School Referee'}</span>
                                 ) : (
-                                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Active</span>
+                                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">Independent Tracker</span>
                                 )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right">
+                                <Button size="sm" variant="outline" className="mr-2" onClick={() => {
+                                    setEditReferee({
+                                        _id: referee._id || referee.id,
+                                        name: referee.name,
+                                        email: referee.email,
+                                        mobile: referee.mobile || '',
+                                        experience: referee.experience || ''
+                                    });
+                                    setIsEditModalOpen(true);
+                                }}>
+                                    Edit
+                                </Button>
                                 <Button size="sm" variant="outline" onClick={() => setSelectedReferee(referee)}>
                                     View Details
                                 </Button>
@@ -189,7 +197,7 @@ export const AdminUsers = () => {
                                <p className="text-sm font-bold text-orange-600 uppercase mr-3">Referee</p>
                                <div className="flex items-center text-yellow-500">
                                    <Star className="h-4 w-4 fill-current" />
-                                   <span className="ml-1 text-sm font-bold text-slate-700">{selectedReferee.rating || '4.5'}</span>
+                                   <span className="ml-1 text-sm font-bold text-slate-700">{selectedReferee.rating || 0}</span>
                                </div>
                            </div>
                        </div>
@@ -294,13 +302,6 @@ export const AdminUsers = () => {
                           ))}
                       </div>
                   </div>
-
-                  {(selectedReferee.status === 'Pending' || selectedReferee.status === undefined) && (
-                      <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                          <Button variant="outline" className="text-red-600 hover:bg-red-50 hover:border-red-200">Reject</Button>
-                          <Button onClick={() => handleVerify(selectedReferee._id || selectedReferee.id)}>Approve & Activate</Button>
-                      </div>
-                  )}
               </div>
           )}
       </Modal>
@@ -311,7 +312,11 @@ export const AdminUsers = () => {
         onClose={() => setIsAddModalOpen(false)}
         title="Add Independent Referee"
       >
-          <div className="space-y-4">
+          <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-4">
+              {/* Dummy inputs to trick password managers */}
+              <input type="email" style={{display:'none'}} autoComplete="email" />
+              <input type="password" style={{display:'none'}} autoComplete="new-password" />
+              
               <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">Full Name <span className="text-red-500">*</span></label>
                   <input 
@@ -327,6 +332,7 @@ export const AdminUsers = () => {
                       <label className="block text-sm font-bold text-slate-700 mb-1">Email Address <span className="text-red-500">*</span></label>
                       <input 
                         type="email" 
+                        autoComplete="off"
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
                         placeholder="john@example.com"
                         value={newReferee.email}
@@ -338,6 +344,7 @@ export const AdminUsers = () => {
                       <div className="relative">
                         <input 
                           type={showPassword ? "text" : "password"} 
+                          autoComplete="new-password"
                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none pr-10"
                           placeholder="Set initial password"
                           value={newReferee.password}
@@ -358,7 +365,7 @@ export const AdminUsers = () => {
                   <input 
                     type="tel" 
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
-                    placeholder="(555) 000-0000"
+                    placeholder="+91 98765 43210"
                     value={newReferee.mobile}
                     onChange={(e) => setNewReferee({...newReferee, mobile: e.target.value})}
                   />
@@ -375,11 +382,67 @@ export const AdminUsers = () => {
                   />
               </div>
               <div className="flex justify-end pt-4 gap-2">
-                  <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-                  <Button onClick={handleAddReferee} disabled={!newReferee.name || !newReferee.email || !newReferee.password}>Add Referee</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+                  <Button type="button" onClick={handleAddReferee} disabled={!newReferee.name || !newReferee.email || !newReferee.password}>Add Referee</Button>
+              </div>
+          </form>
+      </Modal>
+      
+      {/* Edit Referee Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Independent Referee"
+      >
+          <div className="space-y-4">
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Full Name <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
+                    placeholder="e.g. John Doe"
+                    value={editReferee.name}
+                    onChange={(e) => setEditReferee({...editReferee, name: e.target.value})}
+                  />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Email Address <span className="text-red-500">*</span></label>
+                      <input 
+                        type="email" 
+                        disabled
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 outline-none cursor-not-allowed"
+                        value={editReferee.email}
+                      />
+                  </div>
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Mobile Number</label>
+                      <input 
+                        type="tel" 
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
+                        placeholder="+91 98765 43210"
+                        value={editReferee.mobile}
+                        onChange={(e) => setEditReferee({...editReferee, mobile: e.target.value})}
+                      />
+                  </div>
+              </div>
+              <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Experience (Years)</label>
+                  <input 
+                    type="text"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 outline-none"
+                    placeholder="e.g. 5"
+                    value={editReferee.experience}
+                    onChange={(e) => setEditReferee({...editReferee, experience: e.target.value})}
+                  />
+              </div>
+              <div className="flex justify-end pt-4 gap-2">
+                  <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+                  <Button onClick={handleEditReferee} disabled={!editReferee.name || !editReferee.email}>Save Changes</Button>
               </div>
           </div>
-      </Modal></>
+      </Modal>
+      </>
     
   );
 };

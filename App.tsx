@@ -1,18 +1,19 @@
 import React, { Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { UserRole } from './types';
+import { Navigate, Outlet, Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { PublicLayout } from './components/layout/PublicLayout';
-
-import { Home } from './pages/Home';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
-import { PublicTournaments } from './pages/PublicTournaments';
 import { Gallery } from './pages/Gallery';
-import { Login } from './pages/Login';
+import { Home } from './pages/Home';
 import { Impersonate } from './pages/Impersonate';
+import { Login } from './pages/Login';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { PublicTournaments } from './pages/PublicTournaments';
+import { TermsOfService } from './pages/TermsOfService';
+import { UserRole } from './types';
 
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminGallery = React.lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
@@ -39,6 +40,16 @@ const RefereeProfile = React.lazy(() => import('./pages/referee/RefereeProfile')
 const StudentDashboard = React.lazy(() => import('./pages/student/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
 const StudentTeams = React.lazy(() => import('./pages/student/StudentTeams').then(m => ({ default: m.StudentTeams })));
 const StudentMatches = React.lazy(() => import('./pages/student/StudentMatches').then(m => ({ default: m.StudentMatches })));
+
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
 
 const useDynamicFavicon = () => {
   useEffect(() => {
@@ -116,6 +127,8 @@ const AppRoutes = () => {
         <Route path="/tournaments" element={<PublicTournaments />} />
         <Route path="/login" element={<Login />} />
         <Route path="/impersonate/:token" element={<Impersonate />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
       </Route>
       
       {/* Authenticated Routes */}
@@ -319,6 +332,7 @@ export default function App() {
     <AuthProvider>
       <Toaster position="top-right" />
       <Router>
+        <ScrollToTop />
         <AppRoutes />
       </Router>
     </AuthProvider>

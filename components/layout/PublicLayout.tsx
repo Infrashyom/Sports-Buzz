@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Trophy, Menu, X } from 'lucide-react';
+import { Trophy, Menu, X, Facebook, Twitter, Instagram, Linkedin, Mail, Phone } from 'lucide-react';
+import { SITE_DETAILS } from '../../constants';
 
 const PublicLayoutContext = createContext(false);
 
@@ -22,14 +23,14 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
   const initialContact = getInitialContact();
 
   const [logoUrl, setLogoUrl] = React.useState(initialContact.logoUrl || '');
-  const [platformName, setPlatformName] = React.useState(initialContact.platformName || 'Sports Buzz');
+  const [platformName, setPlatformName] = React.useState(initialContact.platformName || SITE_DETAILS.platformName);
   const location = useLocation();
 
   React.useEffect(() => {
     const handleLogoUpdated = () => {
       const contact = getInitialContact();
       setLogoUrl(contact.logoUrl || '');
-      setPlatformName(contact.platformName || 'Sports Buzz');
+      setPlatformName(contact.platformName || SITE_DETAILS.platformName);
     };
     window.addEventListener('logoUpdated', handleLogoUpdated);
     return () => window.removeEventListener('logoUpdated', handleLogoUpdated);
@@ -126,46 +127,67 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
         {children || <Outlet />}
       </main>
 
-      <footer className="bg-slate-950 text-slate-300 py-16 border-t border-slate-800">
+      <footer className="bg-slate-950 text-slate-300 py-10 border-t border-slate-800 flex-none">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-6">
               <div className="flex items-center space-x-2">
                 {logoUrl ? (
                   <img src={logoUrl} alt="Logo" className="h-8 w-8 rounded-lg object-cover" />
                 ) : (
-                  <div className="bg-blue-600 p-1.5 rounded-lg">
+                  <div className="bg-blue-600 p-1.5 rounded-lg border border-blue-500/30">
                     <Trophy className="h-5 w-5 text-white" />
                   </div>
                 )}
                 <span className="text-xl font-black text-white tracking-tight">{platformName}</span>
               </div>
               <p className="text-sm text-slate-400 max-w-xs leading-relaxed">
-                The next-generation platform for school sports management, tournament organization, and athlete tracking.
+                {SITE_DETAILS.description}
               </p>
+              <div className="flex space-x-4">
+                {SITE_DETAILS.socialLinks.facebook && <a href={SITE_DETAILS.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Facebook className="h-4 w-4" /></a>}
+                {SITE_DETAILS.socialLinks.twitter && <a href={SITE_DETAILS.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Twitter className="h-4 w-4" /></a>}
+                {SITE_DETAILS.socialLinks.instagram && <a href={SITE_DETAILS.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Instagram className="h-4 w-4" /></a>}
+                {SITE_DETAILS.socialLinks.linkedin && <a href={SITE_DETAILS.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Linkedin className="h-4 w-4" /></a>}
+              </div>
             </div>
+            
             <div>
               <h4 className="text-white font-bold mb-6 tracking-wide uppercase text-sm">Quick Links</h4>
               <ul className="space-y-3 text-sm font-medium">
-                <li><Link to="/about" className="text-slate-400 hover:text-white transition-colors">About Us</Link></li>
-                <li><Link to="/tournaments" className="text-slate-400 hover:text-white transition-colors">Live Tournaments</Link></li>
-                <li><Link to="/contact" className="text-slate-400 hover:text-white transition-colors">Contact Support</Link></li>
+                <li><Link to="/" className="text-slate-400 hover:text-white flex items-center transition-colors">Home</Link></li>
+                <li><Link to="/about" className="text-slate-400 hover:text-white flex items-center transition-colors">About Us</Link></li>
+                <li><Link to="/tournaments" className="text-slate-400 hover:text-white flex items-center transition-colors">Live Tournaments</Link></li>
+                <li><Link to="/gallery" className="text-slate-400 hover:text-white flex items-center transition-colors">Gallery</Link></li>
               </ul>
             </div>
+            
             <div>
-              <h4 className="text-white font-bold mb-6 tracking-wide uppercase text-sm">Portals</h4>
-              <ul className="space-y-3 text-sm font-medium">
-                <li><Link to="/login" className="text-slate-400 hover:text-white transition-colors">School Admin Login</Link></li>
-                <li><Link to="/login" className="text-slate-400 hover:text-white transition-colors">Referee Portal</Link></li>
-                <li><Link to="/login" className="text-slate-400 hover:text-white transition-colors">Student Dashboard</Link></li>
+              <h4 className="text-white font-bold mb-6 tracking-wide uppercase text-sm">Contact Us</h4>
+              <ul className="space-y-4 text-sm font-medium">
+                <li className="flex items-center text-slate-400 hover:text-white transition-colors">
+                    <Mail className="h-4 w-4 mr-3 text-slate-500" />
+                    <a href={`mailto:${SITE_DETAILS.contactEmail}`}>{SITE_DETAILS.contactEmail}</a>
+                </li>
+                <li className="flex items-center text-slate-400 hover:text-white transition-colors">
+                    <Phone className="h-4 w-4 mr-3 text-slate-500" />
+                    <a href={`tel:${SITE_DETAILS.contactPhone.replace(/[^0-9+]/g, '')}`}>{SITE_DETAILS.contactPhone}</a>
+                </li>
+                <li className="pt-2">
+                    <Link to="/contact">
+                      <button className="text-sm font-bold bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-lg transition-colors shadow-sm outline-none w-full sm:w-auto">
+                        Get in Touch
+                      </button>
+                    </Link>
+                </li>
               </ul>
             </div>
           </div>
-          <div className="mt-16 pt-8 border-t border-slate-800 text-sm text-slate-500 flex flex-col md:flex-row justify-between items-center font-medium">
+          <div className="mt-10 pt-6 border-t border-slate-800/100 text-sm text-slate-500 flex flex-col md:flex-row justify-between items-center font-medium">
             <p>© {new Date().getFullYear()} {platformName}. All rights reserved.</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+              <Link to={SITE_DETAILS.legalLinks.privacyPolicy} className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link to={SITE_DETAILS.legalLinks.termsOfService} className="hover:text-white transition-colors">Terms of Service</Link>
             </div>
           </div>
         </div>

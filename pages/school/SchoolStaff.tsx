@@ -4,7 +4,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-import { Plus, Award, Mail, Phone, Ban, Edit2, ShieldCheck, CheckCircle, FileText, Star, Eye, EyeOff } from 'lucide-react';
+import { Plus, Award, Mail, Phone, Ban, Edit2, ShieldCheck, CheckCircle, Star, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -23,23 +23,22 @@ interface StaffMember {
   status: string;
   password?: string;
   rating?: number;
+  experience?: string;
 }
 
 export const SchoolStaff = () => {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [sports, setSports] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isCertModalOpen, setIsCertModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'ADD' | 'EDIT'>('ADD');
   
   const [banId, setBanId] = useState<string | null>(null);
   const [selectedStaffForBan, setSelectedStaffForBan] = useState<StaffMember | null>(null);
-  const [selectedRefereeCerts, setSelectedRefereeCerts] = useState<StaffMember | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState<Partial<StaffMember>>({
-    name: '', email: '', phone: '', sport: '', role: 'REFEREE', certification: '', password: ''
+    name: '', email: '', phone: '', sport: '', role: 'REFEREE', certification: '', password: '', experience: ''
   });
 
   const { user } = useAuth();
@@ -64,13 +63,13 @@ export const SchoolStaff = () => {
 
   const openAddModal = () => {
       setModalMode('ADD');
-      setFormData({ name: '', email: '', phone: '', sport: sports.length > 0 ? sports[0].name : '', role: 'REFEREE', certification: '', password: '' });
+      setFormData({ name: '', email: '', phone: '', sport: sports.length > 0 ? sports[0].name : '', role: 'REFEREE', certification: '', password: '', experience: '' });
       setIsModalOpen(true);
   };
 
   const openEditModal = (staff: StaffMember) => {
       setModalMode('EDIT');
-      setFormData({ ...staff, password: '' });
+      setFormData({ ...staff, phone: staff.mobile || staff.phone || '', password: '', experience: staff.experience || '' });
       setIsModalOpen(true);
   };
 
@@ -89,8 +88,8 @@ export const SchoolStaff = () => {
                 role: 'REFEREE',
                 mobile: formData.phone,
                 sport: formData.sport,
-                certifications: formData.certification ? [{ name: formData.certification, status: 'Pending' }] : undefined,
-                status: 'Pending'
+                experience: formData.experience,
+                status: 'Active'
             });
             setStaffList([...staffList, addedStaff.data.data.user]);
             toast.success(`Referee added successfully.`);
@@ -100,7 +99,8 @@ export const SchoolStaff = () => {
         }
     } else {
         try {
-          const res = await api.patch(`/users/${formData._id || formData.id}`, formData);
+          const payload = { ...formData, mobile: formData.phone };
+          const res = await api.patch(`/users/${formData._id || formData.id}`, payload);
           setStaffList(staffList.map(s => s._id === formData._id ? res.data.data.user : s));
           toast.success(`Referee details updated.`);
           setIsModalOpen(false);
@@ -128,11 +128,6 @@ export const SchoolStaff = () => {
         toast.error('Failed to change status');
       }
     }
-  };
-
-  const viewCertifications = (staff: any) => {
-      setSelectedRefereeCerts(staff);
-      setIsCertModalOpen(true);
   };
 
   return (<>
@@ -187,9 +182,6 @@ export const SchoolStaff = () => {
                 <Star className="h-4 w-4 mr-3 text-yellow-500" /> 
                 {staff.rating ? `${staff.rating}.0 / 5.0` : 'Not rated yet'}
               </div>
-              <div className="flex items-center text-blue-600 cursor-pointer hover:underline" onClick={() => viewCertifications(staff)}>
-                <FileText className="h-4 w-4 mr-3" /> View Certifications
-              </div>
             </div>
 
             <div className="mt-6 flex gap-2">
@@ -231,10 +223,6 @@ export const SchoolStaff = () => {
         title={modalMode === 'ADD' ? `Add New Referee` : `Edit Referee Details`}
       >
         <div className="space-y-4">
-          <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800 border border-blue-100">
-             Referees added here will be reviewed by the Platform Admin before they can officiate official matches.
-          </div>
-
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1">Full Name <span className="text-red-500">*</span></label>
             <input 
@@ -263,7 +251,7 @@ export const SchoolStaff = () => {
                 <input 
                   type="tel"
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
-                  placeholder="(555) 000-0000"
+                  placeholder="+91 98765 43210"
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
                 />
@@ -304,7 +292,20 @@ export const SchoolStaff = () => {
                 </div>
               </div>
             )}
-          </div>
+           </div>
+
+           <div className="grid grid-cols-1 gap-4">
+             <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Experience (Years)</label>
+                <input 
+                  type="text"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
+                  placeholder="e.g. 5"
+                  value={formData.experience || ''}
+                  onChange={(e) => setFormData({...formData, experience: e.target.value})}
+                />
+             </div>
+           </div>
 
           <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
              <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
@@ -313,63 +314,6 @@ export const SchoolStaff = () => {
         </div>
       </Modal>
       
-      {/* View Certifications Modal */}
-      <Modal
-        isOpen={isCertModalOpen}
-        onClose={() => setIsCertModalOpen(false)}
-        title="Referee Certifications"
-      >
-        {selectedRefereeCerts && (
-            <div className="space-y-4">
-                {(selectedRefereeCerts.certifications || []).length > 0 ? (
-                  (selectedRefereeCerts.certifications || []).map((cert: any, idx: number) => (
-                    <div key={idx} className="flex items-start space-x-3 p-4 bg-slate-50 rounded-lg border border-slate-100 flex-col md:flex-row gap-4 mb-2">
-                        <div className="mt-1 p-2 bg-blue-100 rounded text-blue-600 self-start hidden md:block">
-                            <Award className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-slate-900 text-sm">{cert.name}</h4>
-                            <p className="text-xs text-slate-500">Authority: {cert.authority || 'N/A'}</p>
-                            {cert.licenseId && cert.licenseId.startsWith('http') && (
-                                <a href={cert.licenseId} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline inline-flex items-center mt-1 font-medium bg-blue-50 px-2 py-1 rounded">
-                                    <FileText className="h-3 w-3 mr-1" /> View Document
-                                </a>
-                            )}
-                        </div>
-                        <div className="flex flex-col gap-2 items-end">
-                          <span className={`text-xs font-bold ${cert.status === 'Verified' ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50'} px-2 py-1 rounded`}>
-                              {cert.status}
-                          </span>
-                          {cert.status === 'Pending' && (
-                              <Button size="sm" onClick={async () => {
-                                 const updatedCerts = [...(selectedRefereeCerts.certifications || [])];
-                                 updatedCerts[idx].status = 'Verified';
-                                 try {
-                                   await api.patch(`/users/${selectedRefereeCerts._id}`, { certifications: updatedCerts, status: 'Active' });
-                                   setSelectedRefereeCerts({...selectedRefereeCerts, certifications: updatedCerts, status: 'Active'});
-                                   setStaffList(staffList.map(s => s._id === selectedRefereeCerts._id ? {...s, certifications: updatedCerts, status: 'Active'} : s));
-                                   toast.success('Certification verified and referee activated');
-                                 } catch {
-                                   toast.error('Failed to verify');
-                                 }
-                              }}>Verify</Button>
-                          )}
-                        </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-6 text-sm text-slate-500 border border-dashed border-slate-200 rounded-xl">
-                      No certifications on file.
-                  </div>
-                )}
-                
-                <div className="flex justify-end pt-4 mt-2 border-t border-slate-100">
-                    <Button onClick={() => setIsCertModalOpen(false)}>Close</Button>
-                </div>
-            </div>
-        )}
-      </Modal>
-
       {/* Confirmation Modal (Ban/Unban) */}
       <ConfirmationModal
         isOpen={!!banId}
