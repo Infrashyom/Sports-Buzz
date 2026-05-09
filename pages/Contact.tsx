@@ -28,8 +28,8 @@ export const Contact = () => {
   const initialContact = getInitialContact();
 
   const [contactInfo] = useState({
-    email: initialContact.email || 'hello@sportsbuzz.com',
-    phone: initialContact.phone || '8209564347',
+    email: (initialContact.email && initialContact.email !== 'support@sportsbuzz.com' && initialContact.email !== 'hello@sportsbuzz.com') ? initialContact.email : 'sppareek1993@gmail.com',
+    phone: (initialContact.phone && initialContact.phone !== '+91 98765 43210') ? initialContact.phone : '+91 8209564347',
     address: initialContact.address || 'Tilak Nagar, Paota\nJodhpur, Rajasthan 342006'
   });
 

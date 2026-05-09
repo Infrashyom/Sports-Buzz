@@ -14,6 +14,7 @@ export const AdminUsers = () => {
   
   const [referees, setReferees] = useState<any[]>([]);
   const [matches, setMatches] = useState<any[]>([]);
+  const [schools, setSchools] = useState<any[]>([]);
 
   useEffect(() => {
     // Fetch referees
@@ -25,7 +26,22 @@ export const AdminUsers = () => {
     api.get('/matches').then(res => {
       setMatches(res.data.data.matches);
     }).catch(err => console.error(err));
+
+    // Fetch schools to map names if population fails
+    api.get('/schools').then(res => {
+      setSchools(res.data.data.schools);
+    }).catch(err => console.error(err));
   }, []);
+
+  const getRefereeSchoolName = (referee: any) => {
+      if (!referee.schoolId) return 'Independent Tracker';
+      if (typeof referee.schoolId === 'object' && referee.schoolId.name) {
+          return referee.schoolId.name;
+      }
+      const schoolIdString = typeof referee.schoolId === 'object' ? referee.schoolId._id : referee.schoolId;
+      const foundSchool = schools.find(s => s._id === schoolIdString || s.id === schoolIdString);
+      return foundSchool ? foundSchool.name : 'Unknown School';
+  }
 
   const [selectedReferee, setSelectedReferee] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -148,7 +164,7 @@ export const AdminUsers = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                                 {referee.schoolId ? (
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">{referee.schoolId.name || 'School Referee'}</span>
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold whitespace-normal">{getRefereeSchoolName(referee)}</span>
                                 ) : (
                                     <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">Independent Tracker</span>
                                 )}

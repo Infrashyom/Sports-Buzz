@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Trophy, Menu, X, Facebook, Twitter, Instagram, Linkedin, Mail, Phone } from 'lucide-react';
+import { Trophy, Menu, X, Instagram, Mail, Phone, Youtube } from 'lucide-react';
 import { SITE_DETAILS } from '../../constants';
 
 const PublicLayoutContext = createContext(false);
@@ -145,20 +145,18 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
                 {SITE_DETAILS.description}
               </p>
               <div className="flex space-x-4">
-                {SITE_DETAILS.socialLinks.facebook && <a href={SITE_DETAILS.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Facebook className="h-4 w-4" /></a>}
-                {SITE_DETAILS.socialLinks.twitter && <a href={SITE_DETAILS.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Twitter className="h-4 w-4" /></a>}
+                {SITE_DETAILS.socialLinks.youtube && <a href={SITE_DETAILS.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Youtube className="h-4 w-4" /></a>}
                 {SITE_DETAILS.socialLinks.instagram && <a href={SITE_DETAILS.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Instagram className="h-4 w-4" /></a>}
-                {SITE_DETAILS.socialLinks.linkedin && <a href={SITE_DETAILS.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Linkedin className="h-4 w-4" /></a>}
               </div>
             </div>
             
             <div>
               <h4 className="text-white font-bold mb-6 tracking-wide uppercase text-sm">Quick Links</h4>
               <ul className="space-y-3 text-sm font-medium">
-                <li><Link to="/" className="text-slate-400 hover:text-white flex items-center transition-colors">Home</Link></li>
-                <li><Link to="/about" className="text-slate-400 hover:text-white flex items-center transition-colors">About Us</Link></li>
-                <li><Link to="/tournaments" className="text-slate-400 hover:text-white flex items-center transition-colors">Live Tournaments</Link></li>
-                <li><Link to="/gallery" className="text-slate-400 hover:text-white flex items-center transition-colors">Gallery</Link></li>
+                <li><Link to="/" onClick={() => window.scrollTo(0, 0)} className="text-slate-400 hover:text-white flex items-center transition-colors">Home</Link></li>
+                <li><Link to="/about" onClick={() => window.scrollTo(0, 0)} className="text-slate-400 hover:text-white flex items-center transition-colors">About Us</Link></li>
+                <li><Link to="/tournaments" onClick={() => window.scrollTo(0, 0)} className="text-slate-400 hover:text-white flex items-center transition-colors">Live Tournaments</Link></li>
+                <li><Link to="/gallery" onClick={() => window.scrollTo(0, 0)} className="text-slate-400 hover:text-white flex items-center transition-colors">Gallery</Link></li>
               </ul>
             </div>
             
@@ -186,8 +184,8 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
           <div className="mt-10 pt-6 border-t border-slate-800/100 text-sm text-slate-500 flex flex-col md:flex-row justify-between items-center font-medium">
             <p>© {new Date().getFullYear()} {platformName}. All rights reserved.</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
-              <Link to={SITE_DETAILS.legalLinks.privacyPolicy} className="hover:text-white transition-colors">Privacy Policy</Link>
-              <Link to={SITE_DETAILS.legalLinks.termsOfService} className="hover:text-white transition-colors">Terms of Service</Link>
+              <Link to={SITE_DETAILS.legalLinks.privacyPolicy} onClick={() => window.scrollTo(0, 0)} className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link to={SITE_DETAILS.legalLinks.termsOfService} onClick={() => window.scrollTo(0, 0)} className="hover:text-white transition-colors">Terms of Service</Link>
             </div>
           </div>
         </div>

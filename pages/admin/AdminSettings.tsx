@@ -27,8 +27,8 @@ export const AdminSettings = () => {
   const [logoUrl, setLogoUrl] = useState(initialContact.logoUrl || 'https://ui-avatars.com/api/?name=Sports+Buzz&background=2563eb&color=fff');
   
   // Contact Info State
-  const [contactEmail, setContactEmail] = useState(initialContact.email || 'support@sportsbuzz.com');
-  const [contactPhone, setContactPhone] = useState(initialContact.phone || '+91 98765 43210');
+  const [contactEmail, setContactEmail] = useState((initialContact.email && initialContact.email !== 'support@sportsbuzz.com' && initialContact.email !== 'hello@sportsbuzz.com') ? initialContact.email : 'sppareek1993@gmail.com');
+  const [contactPhone, setContactPhone] = useState((initialContact.phone && initialContact.phone !== '+91 98765 43210') ? initialContact.phone : '+91 8209564347');
   const [contactAddress, setContactAddress] = useState(initialContact.address || 'Tilak nagar Paota jodhpur 342006');
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

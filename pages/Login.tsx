@@ -86,13 +86,13 @@ export const Login = () => {
           <Card className="p-6 space-y-6">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Email or Student ID</label>
+                <label className="text-sm font-medium text-slate-700">Email</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Mail className="h-5 w-5 text-slate-400" />
                   </div>
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
