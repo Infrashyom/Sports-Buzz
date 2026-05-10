@@ -70,14 +70,5 @@ Ensure you have the following installed on your local machine:
 └── App.tsx              # Main routing logic
 ```
 
-## 🔑 Demo Credentials
-
-You can use the "Quick Login" buttons on the login page, or use these credentials:
-
-*   **Admin:** `admin@sportsbuzz.com` / `password123`
-*   **School:** `school@springfield.edu` / `password123`
-*   **Referee:** `referee@sportsbuzz.com` / `password123`
-*   **Student:** `student@springfield.edu` / `password123`
-
 ---
-*Generated for Client Demo*
+*Created for Production*

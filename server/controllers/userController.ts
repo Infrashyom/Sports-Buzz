@@ -6,8 +6,6 @@ import { AppError } from '../utils/errorHandler';
 
 export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   const filter: Record<string, any> = {};
-  
-   
   const reqUser = (req as any).user;
   
   if (reqUser.role === 'SCHOOL') {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { Mail, CheckCircle, Clock, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
@@ -21,7 +22,10 @@ export const AdminQueries = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
+  const [queryToResolve, setQueryToResolve] = useState<string | null>(null);
   const itemsPerPage = 5;
+
+  const [dateFilter, setDateFilter] = useState('ALL');
 
   useEffect(() => {
     fetchQueries();
@@ -38,13 +42,16 @@ export const AdminQueries = () => {
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: 'PENDING' | 'RESOLVED') => {
+  const handleResolve = async () => {
+    if (!queryToResolve) return;
     try {
-      await api.patch(`/contact-queries/${id}`, { status: newStatus });
+      await api.patch(`/contact-queries/${queryToResolve}`, { status: 'RESOLVED' });
       toast.success('Query status updated');
       fetchQueries();
     } catch {
       toast.error('Failed to update query status');
+    } finally {
+      setQueryToResolve(null);
     }
   };
 
@@ -55,9 +62,27 @@ export const AdminQueries = () => {
       const search = searchTerm.toLowerCase();
       const matchesSearch = fullName.includes(search) || email.includes(search);
       const matchesStatus = statusFilter === 'ALL' || q.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [queries, searchTerm, statusFilter]);
+      
+      let matchesDate = true;
+      if (dateFilter !== 'ALL') {
+        const date = new Date(q.createdAt);
+        const now = new Date();
+        if (dateFilter === 'TODAY') {
+          matchesDate = date.toDateString() === now.toDateString();
+        } else if (dateFilter === 'WEEK') {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          matchesDate = date >= weekAgo;
+        } else if (dateFilter === 'MONTH') {
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          matchesDate = date >= monthAgo;
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesDate;
+    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [queries, searchTerm, statusFilter, dateFilter]);
 
   const totalPages = Math.ceil(filteredQueries.length / itemsPerPage);
   const paginatedQueries = filteredQueries.slice(
@@ -84,6 +109,19 @@ export const AdminQueries = () => {
             <option value="ALL">All Statuses</option>
             <option value="PENDING">Pending</option>
             <option value="RESOLVED">Resolved</option>
+          </select>
+          <select 
+            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            value={dateFilter}
+            onChange={(e) => {
+              setDateFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="ALL">All Time</option>
+            <option value="TODAY">Today</option>
+            <option value="WEEK">Last 7 Days</option>
+            <option value="MONTH">Last 30 Days</option>
           </select>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -134,21 +172,13 @@ export const AdminQueries = () => {
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 justify-start md:w-48 shrink-0">
-                    {query.status === 'PENDING' ? (
+                    {query.status === 'PENDING' && (
                       <Button 
                         variant="outline" 
                         className="w-full justify-center text-green-600 border-green-200 hover:bg-green-50"
-                        onClick={() => handleStatusChange(query._id, 'RESOLVED')}
+                        onClick={() => setQueryToResolve(query._id)}
                       >
                         <CheckCircle className="h-4 w-4 mr-2" /> Mark Resolved
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-center text-yellow-600 border-yellow-200 hover:bg-yellow-50"
-                        onClick={() => handleStatusChange(query._id, 'PENDING')}
-                      >
-                        <Clock className="h-4 w-4 mr-2" /> Mark Pending
                       </Button>
                     )}
                   </div>
@@ -183,6 +213,17 @@ export const AdminQueries = () => {
           </>
         )}
       </Card>
+
+      <ConfirmationModal
+        isOpen={!!queryToResolve}
+        onClose={() => setQueryToResolve(null)}
+        onConfirm={handleResolve}
+        title="Resolve Query"
+        message="Are you sure you want to mark this query as resolved? This action cannot be undone."
+        confirmLabel="Mark Resolved"
+        cancelLabel="Cancel"
+        variant="primary"
+      />
     </>
   );
 };

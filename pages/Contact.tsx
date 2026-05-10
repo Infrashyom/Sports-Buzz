@@ -3,6 +3,7 @@ import { PublicLayout } from '../components/layout/PublicLayout';
 import { Mail, Phone, MapPin, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { SITE_DETAILS } from '../constants';
 
 export const Contact = () => {
   const [formData, setFormData] = useState({
@@ -27,11 +28,24 @@ export const Contact = () => {
 
   const initialContact = getInitialContact();
 
-  const [contactInfo] = useState({
-    email: (initialContact.email && initialContact.email !== 'support@sportsbuzz.com' && initialContact.email !== 'hello@sportsbuzz.com') ? initialContact.email : 'sppareek1993@gmail.com',
-    phone: (initialContact.phone && initialContact.phone !== '+91 98765 43210') ? initialContact.phone : '+91 8209564347',
+  const [contactInfo, setContactInfo] = useState({
+    email: (initialContact.email && initialContact.email !== 'support@sportsbuzz.com' && initialContact.email !== 'hello@sportsbuzz.com') ? initialContact.email : SITE_DETAILS.contactEmail,
+    phone: (initialContact.phone && initialContact.phone !== '+91 98765 43210') ? initialContact.phone : SITE_DETAILS.contactPhone,
     address: initialContact.address || 'Tilak Nagar, Paota\nJodhpur, Rajasthan 342006'
   });
+
+  React.useEffect(() => {
+    const handleSettingsUpdated = () => {
+      const contact = getInitialContact();
+      setContactInfo({
+        email: (contact.email && contact.email !== 'support@sportsbuzz.com' && contact.email !== 'hello@sportsbuzz.com') ? contact.email : SITE_DETAILS.contactEmail,
+        phone: (contact.phone && contact.phone !== '+91 98765 43210') ? contact.phone : SITE_DETAILS.contactPhone,
+        address: contact.address || 'Tilak Nagar, Paota\nJodhpur, Rajasthan 342006'
+      });
+    };
+    window.addEventListener('logoUpdated', handleSettingsUpdated);
+    return () => window.removeEventListener('logoUpdated', handleSettingsUpdated);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

@@ -30,6 +30,10 @@ export const AdminSettings = () => {
   const [contactEmail, setContactEmail] = useState((initialContact.email && initialContact.email !== 'support@sportsbuzz.com' && initialContact.email !== 'hello@sportsbuzz.com') ? initialContact.email : 'sppareek1993@gmail.com');
   const [contactPhone, setContactPhone] = useState((initialContact.phone && initialContact.phone !== '+91 98765 43210') ? initialContact.phone : '+91 8209564347');
   const [contactAddress, setContactAddress] = useState(initialContact.address || 'Tilak nagar Paota jodhpur 342006');
+  
+  // Social Links State
+  const [youtubeLink, setYoutubeLink] = useState(initialContact.youtubeLink || 'https://youtube.com/@sportsbuzz');
+  const [instagramLink, setInstagramLink] = useState(initialContact.instagramLink || 'https://www.instagram.com/sports_buzzz_?igsh=MTRmOTlxYzhndnZrdg==');
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -48,7 +52,9 @@ export const AdminSettings = () => {
           phone: contactPhone,
           address: contactAddress,
           logoUrl: logoUrl,
-          platformName: platformName
+          platformName: platformName,
+          youtubeLink: youtubeLink,
+          instagramLink: instagramLink
       };
       localStorage.setItem('sportsBuzzContact', JSON.stringify(contactData));
       window.dispatchEvent(new Event('logoUpdated'));
@@ -66,6 +72,8 @@ export const AdminSettings = () => {
       if (parsed.address) setContactAddress(parsed.address);
       if (parsed.logoUrl) setLogoUrl(parsed.logoUrl);
       if (parsed.platformName) setPlatformName(parsed.platformName);
+      if (parsed.youtubeLink) setYoutubeLink(parsed.youtubeLink);
+      if (parsed.instagramLink) setInstagramLink(parsed.instagramLink);
     }
     setIsEditing(false);
   };
@@ -180,6 +188,36 @@ export const AdminSettings = () => {
                       disabled={!isEditing}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors"
                     ></textarea>
+                </div>
+            </div>
+        </Card>
+
+        <Card title="Social Media Links (Public)">
+            <p className="text-sm text-slate-500 mb-6">These links will be displayed in the public footer.</p>
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">YouTube Channel URL</label>
+                      <input 
+                        type="url" 
+                        value={youtubeLink} 
+                        onChange={(e) => setYoutubeLink(e.target.value)} 
+                        disabled={!isEditing}
+                        placeholder="https://youtube.com/..."
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors" 
+                      />
+                  </div>
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Instagram URL</label>
+                      <input 
+                        type="url" 
+                        value={instagramLink} 
+                        onChange={(e) => setInstagramLink(e.target.value)} 
+                        disabled={!isEditing}
+                        placeholder="https://instagram.com/..."
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors" 
+                      />
+                  </div>
                 </div>
             </div>
         </Card>

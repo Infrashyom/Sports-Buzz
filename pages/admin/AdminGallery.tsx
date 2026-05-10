@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { Trash2, Plus, Image as ImageIcon } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
@@ -13,13 +14,14 @@ interface GalleryItem {
   description?: string;
 }
 
-
 export const AdminGallery = () => {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [description, setDescription] = useState('');
+  
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const fetchGallery = async () => {
     try {
@@ -61,15 +63,16 @@ export const AdminGallery = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    // Note: Using custom modal or simple confirm is fine for demo, but window.confirm might be blocked in iframe
-    // We'll keep it for now but handle the fallback
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
     try {
-      await api.delete(`/gallery/${id}`);
+      await api.delete(`/gallery/${itemToDelete}`);
       toast.success('Gallery item deleted');
       fetchGallery();
     } catch {
       toast.error('Failed to delete gallery item');
+    } finally {
+      setItemToDelete(null);
     }
   };
 
@@ -148,7 +151,7 @@ export const AdminGallery = () => {
                           {item.description && <p className="text-sm text-slate-500 mt-1">{item.description}</p>}
                         </div>
                         <button
-                          onClick={() => handleDelete(item._id)}
+                          onClick={() => setItemToDelete(item._id)}
                           className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -161,7 +164,19 @@ export const AdminGallery = () => {
             )}
           </Card>
         </div>
-      </div></>
+      </div>
+      
+      <ConfirmationModal
+        isOpen={!!itemToDelete}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={confirmDelete}
+        title="Delete Image"
+        message="Are you sure you want to delete this image? This action cannot be undone."
+        confirmLabel="Delete Image"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
+    </>
     
   );
 };

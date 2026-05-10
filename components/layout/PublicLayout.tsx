@@ -24,6 +24,10 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
 
   const [logoUrl, setLogoUrl] = React.useState(initialContact.logoUrl || '');
   const [platformName, setPlatformName] = React.useState(initialContact.platformName || SITE_DETAILS.platformName);
+  const [youtubeLink, setYoutubeLink] = React.useState(initialContact.youtubeLink || SITE_DETAILS.socialLinks.youtube);
+  const [instagramLink, setInstagramLink] = React.useState(initialContact.instagramLink || SITE_DETAILS.socialLinks.instagram);
+  const [contactEmail, setContactEmail] = React.useState((initialContact.email && initialContact.email !== 'support@sportsbuzz.com' && initialContact.email !== 'hello@sportsbuzz.com') ? initialContact.email : SITE_DETAILS.contactEmail);
+  const [contactPhone, setContactPhone] = React.useState((initialContact.phone && initialContact.phone !== '+91 98765 43210') ? initialContact.phone : SITE_DETAILS.contactPhone);
   const location = useLocation();
 
   React.useEffect(() => {
@@ -31,6 +35,10 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
       const contact = getInitialContact();
       setLogoUrl(contact.logoUrl || '');
       setPlatformName(contact.platformName || SITE_DETAILS.platformName);
+      setYoutubeLink(contact.youtubeLink || SITE_DETAILS.socialLinks.youtube);
+      setInstagramLink(contact.instagramLink || SITE_DETAILS.socialLinks.instagram);
+      setContactEmail((contact.email && contact.email !== 'support@sportsbuzz.com' && contact.email !== 'hello@sportsbuzz.com') ? contact.email : SITE_DETAILS.contactEmail);
+      setContactPhone((contact.phone && contact.phone !== '+91 98765 43210') ? contact.phone : SITE_DETAILS.contactPhone);
     };
     window.addEventListener('logoUpdated', handleLogoUpdated);
     return () => window.removeEventListener('logoUpdated', handleLogoUpdated);
@@ -145,8 +153,8 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
                 {SITE_DETAILS.description}
               </p>
               <div className="flex space-x-4">
-                {SITE_DETAILS.socialLinks.youtube && <a href={SITE_DETAILS.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Youtube className="h-4 w-4" /></a>}
-                {SITE_DETAILS.socialLinks.instagram && <a href={SITE_DETAILS.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Instagram className="h-4 w-4" /></a>}
+                {youtubeLink && <a href={youtubeLink} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Youtube className="h-4 w-4" /></a>}
+                {instagramLink && <a href={instagramLink} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors bg-slate-900 p-2 rounded-full border border-slate-800 hover:border-slate-700"><Instagram className="h-4 w-4" /></a>}
               </div>
             </div>
             
@@ -165,11 +173,11 @@ export const PublicLayout = ({ children }: { children?: React.ReactNode }) => {
               <ul className="space-y-4 text-sm font-medium">
                 <li className="flex items-center text-slate-400 hover:text-white transition-colors">
                     <Mail className="h-4 w-4 mr-3 text-slate-500" />
-                    <a href={`mailto:${SITE_DETAILS.contactEmail}`}>{SITE_DETAILS.contactEmail}</a>
+                    <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
                 </li>
                 <li className="flex items-center text-slate-400 hover:text-white transition-colors">
                     <Phone className="h-4 w-4 mr-3 text-slate-500" />
-                    <a href={`tel:${SITE_DETAILS.contactPhone.replace(/[^0-9+]/g, '')}`}>{SITE_DETAILS.contactPhone}</a>
+                    <a href={`tel:${contactPhone.replace(/[^0-9+]/g, '')}`}>{contactPhone}</a>
                 </li>
                 <li className="pt-2">
                     <Link to="/contact">
