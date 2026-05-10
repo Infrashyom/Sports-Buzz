@@ -292,15 +292,6 @@ export const SchoolProfile = () => {
                           className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
                       />
                   </div>
-                  <div className="md:col-span-2">
-                      <label className="block text-sm font-bold text-slate-400 mb-1">Address (Read-Only)</label>
-                      <input 
-                          type="text" 
-                          value={schoolData.address}
-                          disabled
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
-                      />
-                  </div>
               </div>
 
               <div className="h-px bg-slate-100 my-4"></div>
@@ -353,8 +344,8 @@ export const SchoolProfile = () => {
                   <input 
                       type="text" 
                       value={editForm.address}
-                      onChange={(e) => setEditForm({...editForm, address: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
+                      disabled
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
               </div>
 

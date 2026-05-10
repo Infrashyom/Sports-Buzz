@@ -112,7 +112,7 @@ export const SchoolStaff = () => {
 
   const initiateBan = (staff: any) => {
     setSelectedStaffForBan(staff);
-    setBanId(staff._id);
+    setBanId(staff._id || staff.id);
   };
 
   const handleToggleBan = async () => {
@@ -120,7 +120,7 @@ export const SchoolStaff = () => {
       try {
         const newStatus = selectedStaffForBan.status === 'Banned' ? 'Active' : 'Banned';
         await api.patch(`/users/${banId}/status`, { status: newStatus });
-        setStaffList(staffList.map(s => s._id === banId ? { ...s, status: newStatus } : s));
+        setStaffList(staffList.map(s => (s._id || s.id) === banId ? { ...s, status: newStatus } : s));
         toast.success(`Staff member status changed to ${newStatus}.`);
         setBanId(null);
         setSelectedStaffForBan(null);

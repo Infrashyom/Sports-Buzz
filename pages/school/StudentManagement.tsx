@@ -114,6 +114,11 @@ export const StudentManagement = () => {
           return;
       }
 
+      if (!formData.sports || formData.sports.length === 0) {
+          toast.error("Please add at least one sport.");
+          return;
+      }
+
       const targetId = user?.schoolId || user?.id;
 
       if (modalMode === 'ADD') {
@@ -219,7 +224,7 @@ export const StudentManagement = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <input 
               type="text" 
-              placeholder="Search by name or Student ID..." 
+              placeholder="Search by name or email..." 
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-900 focus:bg-white outline-none transition-colors"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -279,7 +284,7 @@ export const StudentManagement = () => {
                     </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-slate-900 font-mono font-medium" style={{maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis'}} title={student.studentId}>{student.studentId}</div>
+                    <div className="text-sm text-slate-900 font-mono font-medium">{student.studentId}</div>
                     <div className="text-xs text-slate-500">{student.grade} Grade</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -453,7 +458,7 @@ export const StudentManagement = () => {
             </div>
 
             <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sports Played</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sports Played <span className="text-red-500">*</span></label>
                 <div className="flex gap-2 mb-2">
                     <select 
                         className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-slate-900"

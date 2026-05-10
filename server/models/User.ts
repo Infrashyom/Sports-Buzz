@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
     status: { type: String, enum: ['Pending', 'Verified'], default: 'Pending' }
   }],
   availability: { type: Boolean, default: true },
-  status: { type: String, enum: ['Active', 'Pending', 'Inactive'], default: 'Active' },
+  status: { type: String, enum: ['Active', 'Pending', 'Inactive', 'Banned'], default: 'Active' },
   createdAt: { type: Date, default: Date.now }
 });
 

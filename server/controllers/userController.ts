@@ -1,11 +1,13 @@
+import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import { NextFunction, Request, Response } from 'express';
 import { User } from '../models/User';
 import { catchAsync } from '../utils/catchAsync';
 import { AppError } from '../utils/errorHandler';
 
 export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   const filter: Record<string, any> = {};
+  
+   
   const reqUser = (req as any).user;
   
   if (reqUser.role === 'SCHOOL') {
@@ -77,19 +79,24 @@ export const updateUser = catchAsync(async (req: Request, res: Response, next: N
 });
 
 export const updateUserStatus = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  const user = await User.findByIdAndUpdate(req.params.id, { status: req.body.status }, {
-    new: true,
-    runValidators: true,
-  });
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, { status: req.body.status }, {
+      new: true,
+      runValidators: true,
+    });
 
-  if (!user) {
-    return next(new AppError('No user found with that ID', 404));
+    if (!user) {
+      return next(new AppError('No user found with that ID', 404));
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: { user },
+    });
+  } catch (err: any) {
+    console.error("updateUserStatus Error: ", err);
+    return next(new AppError('Update User Status Failed: ' + err.message, 500));
   }
-
-  res.status(200).json({
-    status: 'success',
-    data: { user },
-  });
 });
 
 export const getReferees = catchAsync(async (req: Request, res: Response) => {

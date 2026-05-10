@@ -140,6 +140,7 @@ export const AdminUsers = () => {
                     <tr>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Referee</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Experience</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Added By</th>
                         <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -161,6 +162,11 @@ export const AdminUsers = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <span className="text-sm text-slate-600">{referee.experience ? `${referee.experience} years` : 'N/A'}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${referee.status === 'Banned' ? 'bg-red-100 text-red-700' : referee.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                                    {referee.status || 'Active'}
+                                </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                                 {referee.schoolId ? (

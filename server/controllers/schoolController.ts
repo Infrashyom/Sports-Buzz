@@ -155,6 +155,10 @@ export const getDashboardData = catchAsync(async (req: Request, res: Response, n
   .populate('teamB', 'name')
   .sort('date');
 
+  const topTeams = await Team.find({ schoolId: school._id })
+    .sort({ 'stats.won': -1, 'stats.points': -1 })
+    .limit(5);
+
   res.status(200).json({
     status: 'success',
     data: {
@@ -162,7 +166,8 @@ export const getDashboardData = catchAsync(async (req: Request, res: Response, n
       cityRank: school.cityRank,
       totalAthletes,
       recentMatches,
-      nextMatch
+      nextMatch,
+      topTeams
     }
   });
 });

@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { Award, Calendar, Trophy, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import toast from 'react-hot-toast';
-
-import { Card } from '../../components/ui/Card';
-import { Calendar, Users, Trophy, ChevronRight } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
 
 export const SchoolDashboard = () => {
   const navigate = useNavigate();
@@ -17,6 +16,7 @@ export const SchoolDashboard = () => {
     totalAthletes: number;
     recentMatches: any[];
     nextMatch: any | null;
+    topTeams: any[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -96,34 +96,8 @@ export const SchoolDashboard = () => {
         </Card>
       </div>
 
-      <div className="space-y-8">
-        <div className="space-y-6">
-          <Card title="Quick Actions">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Button 
-                variant="secondary" 
-                className="w-full justify-between"
-                onClick={() => navigate('/school/students')}
-              >
-                Register New Student <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="secondary" 
-                className="w-full justify-between"
-                onClick={() => navigate('/school/teams')}
-              >
-                Create Team <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="secondary" 
-                className="w-full justify-between"
-                onClick={() => navigate('/school/fixtures')}
-              >
-                View Reports <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
           <Card title="Recent Match Results">
             {data.recentMatches && data.recentMatches.length > 0 ? (
               <div className="space-y-4">
@@ -163,6 +137,44 @@ export const SchoolDashboard = () => {
                 className="w-full sm:w-auto"
               >
                 View All History
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="md:col-span-1">
+          <Card title="Top Performing Teams">
+            {data.topTeams && data.topTeams.length > 0 ? (
+              <div className="space-y-4">
+                {data.topTeams.map((team, idx) => (
+                  <div key={team._id || idx} className="flex items-center p-3 bg-white rounded-lg border border-slate-100/50 shadow-sm">
+                    <div className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full mr-3 ${idx === 0 ? 'bg-yellow-100 text-yellow-600' : idx === 1 ? 'bg-slate-100 text-slate-500' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-blue-50 text-blue-500'}`}>
+                      <Award className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-slate-900 text-sm">{team.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{team.sport}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-black text-slate-900">{team.stats?.won || 0}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mt-0.5">Wins</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                No team performance data yet.
+              </div>
+            )}
+            <div className="mt-4 text-center">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/school/teams')}
+                className="w-full sm:w-auto"
+              >
+                View All Teams
               </Button>
             </div>
           </Card>

@@ -13,6 +13,8 @@ interface Student {
   id: string;
   name: string;
   grade: string;
+  email?: string;
+  studentId?: string;
 }
 
 interface Team {
@@ -38,7 +40,6 @@ export const TeamManagement = () => {
 
   // Form States
   const [newTeam, setNewTeam] = useState({ name: '', sport: 'Cricket', season: '2024' });
-  const [selectedStudentId, setSelectedStudentId] = useState('');
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -72,10 +73,21 @@ export const TeamManagement = () => {
 
   const getPlayerCount = (players: any[]) => players?.length || 0;
   
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+
   // Get available students (not in selected team)
   const availableStudents = allStudents.filter(s => 
     selectedTeam ? !(selectedTeam.players || []).some((p: any) => p._id === s._id || p === s._id) : true
   );
+
+  const filteredAvailableStudents = availableStudents.filter(s => {
+    const q = studentSearchQuery.toLowerCase();
+    const idString = s._id || s.id || '';
+    return s.name.toLowerCase().includes(q) || 
+           (s.email && s.email.toLowerCase().includes(q)) || 
+           (s.studentId && s.studentId.toLowerCase().includes(q)) || 
+           idString.toLowerCase().includes(q);
+  });
 
   const handleCreateTeam = async () => {
     try {
@@ -100,15 +112,14 @@ export const TeamManagement = () => {
     setIsRosterModalOpen(true);
   };
 
-  const handleAddPlayer = async () => {
-    if (selectedTeam && selectedStudentId) {
+  const handleAddPlayer = async (studentId: string) => {
+    if (selectedTeam && studentId) {
       try {
         const currentPlayers = selectedTeam.players ? selectedTeam.players.map((p: any) => p._id || p) : [];
-        const updatedPlayers = [...currentPlayers, selectedStudentId];
+        const updatedPlayers = [...currentPlayers, studentId];
         const res = await api.patch(`/teams/${selectedTeam._id || selectedTeam.id}`, { players: updatedPlayers });
         setTeams(teams.map(t => (t._id || t.id) === res.data.data.team._id ? res.data.data.team : t));
         setSelectedTeam(res.data.data.team);
-        setSelectedStudentId('');
         toast.success("Player added to roster.");
       } catch {
         toast.error("Failed to add player.");
@@ -293,23 +304,40 @@ export const TeamManagement = () => {
       >
         {selectedTeam && (
             <div className="space-y-6">
-                <div className="bg-blue-50 p-4 rounded-lg flex items-end gap-3 border border-blue-100">
+                <div className="bg-blue-50 p-4 rounded-lg flex flex-col gap-3 border border-blue-100">
                     <div className="flex-1">
-                        <label className="block text-xs font-bold text-blue-800 uppercase mb-1">Add Player to Roster</label>
-                        <select 
-                            className="w-full p-2.5 bg-white border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-slate-900"
-                            value={selectedStudentId}
-                            onChange={(e) => setSelectedStudentId(e.target.value)}
-                        >
-                            <option value="">Select a student...</option>
-                            {availableStudents.map(student => (
-                                <option key={student.id} value={student.id}>{student.name} ({student.grade})</option>
-                            ))}
-                        </select>
+                        <label className="block text-xs font-bold text-blue-800 uppercase mb-1">Search & Add Player to Roster</label>
+                        <div className="flex items-center gap-2 mb-3">
+                            <input 
+                                type="text" 
+                                placeholder="Search by name, email or ID..."
+                                className="w-full px-3 py-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                value={studentSearchQuery}
+                                onChange={(e) => setStudentSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <div className="max-h-40 overflow-y-auto border border-blue-200 rounded-lg divide-y divide-blue-100 bg-white">
+                            {filteredAvailableStudents.length === 0 ? (
+                                <div className="p-4 text-center text-sm text-slate-500 italic">No available students found.</div>
+                            ) : (
+                                filteredAvailableStudents.slice(0, studentSearchQuery ? undefined : 5).map(student => (
+                                    <div key={student._id || student.id} className="flex justify-between items-center p-2.5 hover:bg-slate-50 transition-colors">
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-slate-800">{student.name}</span>
+                                            <span className="text-xs text-slate-500">{student.grade} | {student.studentId || student.email || 'No ID'}</span>
+                                        </div>
+                                        <Button 
+                                            size="sm" 
+                                            onClick={() => handleAddPlayer(student._id || student.id)}
+                                            className="h-7 text-xs py-1 px-3"
+                                        >
+                                            <UserPlus className="h-3 w-3 mr-1" /> Add
+                                        </Button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
-                    <Button onClick={handleAddPlayer} disabled={!selectedStudentId} className="h-[42px]">
-                        <UserPlus className="h-4 w-4 mr-1" /> Add
-                    </Button>
                 </div>
 
                 <div>
